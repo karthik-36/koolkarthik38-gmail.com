@@ -10,28 +10,12 @@ router.get('/', (req,res) => {
 });
 
 
-//insert new user
-router.post('/create', (req,res) => {
-  if (req.body._id == null){
-        console.log("inserting new record");
-          insertRecord(req, res);
-    } else{
-      console.log("updating existing record");
-       updateRecord(req, res);
-     }
-});
-
-//updateRecord
-router.post('/update/:id', (req,res) => {
-  updateRecord(req,res);
-});
 
 //return full list
 router.get('/listAll', (req,res) => {
-
 Employee.find((err,docs) => {
   if(!err){
-  console.log(docs);
+  console.log("complete doc shown to user");
   res.json(docs);
 }else{
   res.send(err);
@@ -41,6 +25,32 @@ Employee.find((err,docs) => {
 });
 
 
+
+router.get('/listApproved', (req,res) => {
+  Employee.find({ 'approval': true }, function (err, docs) {
+    if(!err){
+    console.log("complete doc shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
+router.get('/listUnapproved', (req,res) => {
+  Employee.find({ 'approval': false }, function (err, docs) {
+    if(!err){
+    console.log("complete doc shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
 //delete record
 router.get('/delete/:id', (req, res) => {
     Employee.findByIdAndRemove(req.params.id, (err, doc) => {
@@ -49,6 +59,18 @@ router.get('/delete/:id', (req, res) => {
         }
         else { console.log('Error in employee delete :' + err); }
     });
+});
+
+
+//insert new user / update existing user
+router.post('/create', (req,res) => {
+  if (req.body._id == null){
+        console.log("inserting new record");
+          insertRecord(req, res);
+    } else{
+      console.log("updating existing record");
+       updateRecord(req, res);
+     }
 });
 
 
@@ -77,10 +99,10 @@ function insertRecord(req,res){
 
 
 function updateRecord(req, res) {
+if(validateEmail(req.body.officeEmail)){
 Employee.findOneAndUpdate({ _id: req.body._id }, req.body, { new: true }, (err, doc) => {
       if (!err) {
-        res.send("record updated");
-
+        res.send("record updated with  \n" + JSON.stringify(req.body));
     }
         else {
             if (err.name == 'ValidationError') {
@@ -92,8 +114,51 @@ Employee.findOneAndUpdate({ _id: req.body._id }, req.body, { new: true }, (err, 
                   res.send('Error during record update : ' + err);
         }}
     });
+  }else{
+    res.send("invalid email");
+    console.log("invalid email");
+  }
+}
+
+
+
+function validateEmail(email) {
+    var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
 }
 
 
 
 module.exports = router;
+
+
+
+
+
+
+
+
+
+
+//trash
+
+/*
+  UserModel.find({name : self.name}, function (err, docs) {
+        if (!docs.length){
+            next();
+        }else{
+            console.log('user exists: ',self.name);
+            next(new Error("User exists!"));
+        }
+    });
+*/
+
+/*
+Employee.exists({ phone: req.body.phone }, function(err, result) {
+   if (err) {
+     console.log(err);
+   } else {
+      console.log(result);
+   }
+ });
+ */
