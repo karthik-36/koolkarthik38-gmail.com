@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-var employeeSchema = new mongoose.Schema({
+var adminSchema = new mongoose.Schema({
   username : {
     type : String,
     required : " user name is required",
@@ -12,6 +12,4 @@ var employeeSchema = new mongoose.Schema({
   }
 });
 
-
-
-mongoose.model('admin' , employeeSchema)
+mongoose.model('admin' , adminSchema);

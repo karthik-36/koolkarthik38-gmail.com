@@ -3,6 +3,7 @@ const express = require('express');
 const bodyparser = require('body-parser');
 require('./models/db');
 require('./models/employee.model');
+require('./models/admin.model');
 const employeeController = require('./controller/employeeController');
 var app = express();
 app.use(bodyparser.urlencoded({

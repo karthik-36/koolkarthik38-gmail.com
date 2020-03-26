@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 mongoose.set('useFindAndModify', false);
 const Employee = mongoose.model('Employee');
+const Admin = mongoose.model('admin');
 
 //test
 router.get('/', (req,res) => {
@@ -25,11 +26,11 @@ Employee.find((err,docs) => {
 });
 
 
-
+//list all approved users
 router.get('/listApproved', (req,res) => {
   Employee.find({ 'approval': true }, function (err, docs) {
     if(!err){
-    console.log("complete doc shown to user");
+    console.log("approved doc shown to user");
     res.json(docs);
   }else{
     res.send(err);
@@ -39,6 +40,7 @@ router.get('/listApproved', (req,res) => {
 });
 
 
+//list all unapproved users
 router.get('/listUnapproved', (req,res) => {
   Employee.find({ 'approval': false }, function (err, docs) {
     if(!err){
@@ -72,6 +74,21 @@ router.post('/create', (req,res) => {
        updateRecord(req, res);
      }
 });
+
+//check if admin username and password is correct
+router.post('/check', (req, res) => {
+  Admin.exists({ username: req.body.username , password : req.body.password}, function(err, result) {
+     if (err) {
+       console.log(err);
+     } else {
+        console.log("User does exist "  + result);
+        res.send("User does exist "  + result);
+     }
+   });
+});
+
+
+
 
 
 
