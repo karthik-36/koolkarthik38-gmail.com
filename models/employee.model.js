@@ -2,19 +2,28 @@ const mongoose = require('mongoose');
 
 var employeeSchema = new mongoose.Schema({
   fullName : {
-    type : String
+    type : String,
+    required : " full name is required"
   },
-  email : {
-    type : String
+  office : {
+    type : String,
+    required : " Office is required"
   },
-  Eid : {
-    type : String
+  officeEmail : {
+    type : String,
+    required : " office email is required"
   },
-  approval : {
-    type : Boolean
+  eId : {
+    type : String,
+      required : " employee id is required"
   },
   phone : {
-    type : String
+    type : String,
+      required : " phone number is required"
+  },
+  approval : {
+    type : Boolean,
+      required : " approval status is required"
   }
 
 });
