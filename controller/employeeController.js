@@ -53,6 +53,8 @@ router.get('/listUnapproved', (req,res) => {
   });
 });
 
+
+
 //delete record
 router.get('/delete/:id', (req, res) => {
     Employee.findByIdAndRemove(req.params.id, (err, doc) => {
@@ -82,11 +84,24 @@ router.post('/check', (req, res) => {
        console.log(err);
      } else {
         console.log("User does exist "  + result);
-        res.send("User does exist "  + result);
+        const valid = { validity : result };
+        res.json(valid);
      }
    });
 });
 
+
+router.post('/checkPhone', (req,res) => {
+  Employee.exists({ phone : req.body.phone }, function(err, result) {
+     if (err) {
+       console.log(err);
+     } else {
+        console.log("Exist "  + result);
+        const valid = { exists : result };
+        res.json(valid);
+     }
+   });
+});
 
 
 
