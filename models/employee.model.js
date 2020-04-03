@@ -10,16 +10,22 @@ var employeeSchema = new mongoose.Schema({
     required : " Office is required"
   },
   buildingId : {
-    type : String,
+    type : [String],
     required : " Building ID is required"
+  },
+  sites :{
+    type : [String],
+    required : "sites is required"
   },
   officeEmail : {
     type : String,
-    required : " office email is required"
+    required : " office email is required",
+    unique: false
   },
   eId : {
     type : String,
-      required : " employee id is required"
+      required : " employee id is required",
+      unique: false
   },
   phone : {
     type : String,
@@ -28,8 +34,17 @@ var employeeSchema = new mongoose.Schema({
   },
   approval : {
     type : Boolean,
-      required : " approval status is required"
+    required : " approval status is required"
+  },
+  terms : {
+    type : Boolean,
+    required : " terms status is required"
+  },
+  allowMessaging : {
+    type : Boolean,
+    required : "Messaging status is required"
   }
+
 
 });
 

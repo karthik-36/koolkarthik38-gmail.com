@@ -10,10 +10,127 @@ router.get('/', (req,res) => {
   res.send('empty response')
 });
 
+router.post('/listEmployeeSite', (req,res) => {
+    res.set('Access-Control-Allow-Headers', '*');
+  Employee.find({ 'sites': req.body.site }, function (err, docs) {
+    if(!err){
+    console.log("site -> employee shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
+router.post('/Office', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+  //console.log(req.body.officeName);
+  var officeName = req.body.officeName;
+   Buildingsite.find((err,docs) => {
+    if(!err){
+    console.log("complete doc shown to user");
+//    var obj = JSON.parse(docs);
+//    console.log(obj.buildingName);
+ var arr = [];
+ for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
+
+     for(var s = 0 ; s< docs[0].buildingSites[i].Site[2].OfficeNames.length ; s++){
+     if(docs[0].buildingSites[i].Site[2].OfficeNames[s] == officeName){
+       var obj = {
+                 Office_SiteAccess : docs[0].buildingSites[i].Site[0].siteName,
+                 Office_BuildingAccess : docs[0].buildingSites[i].Site[1].buildingId
+                }
+       arr.push(obj);
+     }
+     }
+  }
+  res.json(arr);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
+router.get('/listOfficeId', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+   Buildingsite.find((err,docs) => {
+    if(!err){
+    console.log("complete doc shown to user");
+//    var obj = JSON.parse(docs);
+//    console.log(obj.buildingName);
+ var arr = [];
+ for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
+
+     for(var s = 0 ; s< docs[0].buildingSites[i].Site[2].OfficeNames.length ; s++){
+       var obj = {
+                 OfficeName : docs[0].buildingSites[i].Site[2].OfficeNames[s],
+                 Office_SiteAccess : docs[0].buildingSites[i].Site[0].siteName,
+                 Office_BuildingAccess : docs[0].buildingSites[i].Site[1].buildingId
+                }
+       arr.push(obj);
+     }
+  }
+  res.json(arr);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
+router.get('/listOffice', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+   Buildingsite.find((err,docs) => {
+    if(!err){
+    console.log("complete doc shown to user");
+//    var obj = JSON.parse(docs);
+//    console.log(obj.buildingName);
+ var arr = [];
+ for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
+     console.log(docs[0].buildingSites[i].Site[2].OfficeNames);
+     arr = arr.concat(docs[0].buildingSites[i].Site[2].OfficeNames);
+  }
+  res.json(arr);
+  }else{
+
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
+router.get('/listSites', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+   Buildingsite.find((err,docs) => {
+    if(!err){
+    console.log("complete doc shown to user");
+//    var obj = JSON.parse(docs);
+//    console.log(obj.buildingName);
+ console.log(typeof docs);
+ var arr = [];
+ for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
+     console.log(docs[0].buildingSites[i].Site[0].siteName);
+     arr.push(docs[0].buildingSites[i].Site[0].siteName);
+  }
+  res.json(arr);
+  }else{
+
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
 
 router.get('/buildingDetails', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
-  Buildingsite.find((err,docs) => {
+   Buildingsite.find((err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
     res.set('Access-Control-Allow-Headers', '*');
@@ -134,9 +251,12 @@ function insertRecord(req,res){
  employee.office = req.body.office;
  employee.officeEmail = req.body.officeEmail;
  employee.buildingId = req.body.buildingId;
+ employee.sites = req.body.sites;
  employee.eId = req.body.eId;
  employee.phone = req.body.phone;
  employee.approval = req.body.approval;
+ employee.terms = req.body.terms;
+ employee.allowMessaging = req.body.allowMessaging;
  employee.save((err,doc)=>{
 
    if(!err){
