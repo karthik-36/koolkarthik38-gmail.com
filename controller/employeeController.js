@@ -4,21 +4,37 @@ const mongoose = require('mongoose');
 mongoose.set('useFindAndModify', false);
 const Employee = mongoose.model('Employee');
 const Admin = mongoose.model('admin');
-
+const Buildingsite = mongoose.model('building');
 //test
 router.get('/', (req,res) => {
   res.send('empty response')
 });
 
 
+router.get('/buildingDetails', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+  Buildingsite.find((err,docs) => {
+    if(!err){
+    console.log("complete doc shown to user");
+    res.set('Access-Control-Allow-Headers', '*');
+    res.json(docs);
+  }else{
+    res.set('Access-Control-Allow-Headers', '*');
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
 
 //return full list
 router.get('/listAll', (req,res) => {
 Employee.find((err,docs) => {
   if(!err){
   console.log("complete doc shown to user");
+  res.set('Access-Control-Allow-Headers', '*');
   res.json(docs);
 }else{
+  res.set('Access-Control-Allow-Headers', '*');
   res.send(err);
   console.log(err);
 }
@@ -28,6 +44,7 @@ Employee.find((err,docs) => {
 
 //list all approved users
 router.get('/listApproved', (req,res) => {
+    res.set('Access-Control-Allow-Headers', '*');
   Employee.find({ 'approval': true }, function (err, docs) {
     if(!err){
     console.log("approved doc shown to user");
@@ -42,6 +59,7 @@ router.get('/listApproved', (req,res) => {
 
 //list all unapproved users
 router.get('/listUnapproved', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
   Employee.find({ 'approval': false }, function (err, docs) {
     if(!err){
     console.log("complete doc shown to user");
@@ -57,6 +75,7 @@ router.get('/listUnapproved', (req,res) => {
 
 //delete record
 router.get('/delete/:id', (req, res) => {
+  res.set('Access-Control-Allow-Headers', '*');
     Employee.findByIdAndRemove(req.params.id, (err, doc) => {
         if (!err) {
             res.send('record deleted');
@@ -68,6 +87,7 @@ router.get('/delete/:id', (req, res) => {
 
 //insert new user / update existing user
 router.post('/create', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
   if (req.body._id == null){
         console.log("inserting new record");
           insertRecord(req, res);
@@ -79,6 +99,7 @@ router.post('/create', (req,res) => {
 
 //check if admin username and password is correct
 router.post('/check', (req, res) => {
+  res.set('Access-Control-Allow-Headers', '*');
   Admin.exists({ username: req.body.username , password : req.body.password}, function(err, result) {
      if (err) {
        console.log(err);
@@ -92,6 +113,7 @@ router.post('/check', (req, res) => {
 
 
 router.post('/checkPhone', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
   Employee.exists({ phone : req.body.phone }, function(err, result) {
      if (err) {
        console.log(err);
@@ -106,13 +128,12 @@ router.post('/checkPhone', (req,res) => {
 
 
 
-
-
 function insertRecord(req,res){
  var employee = new Employee();
  employee.fullName = req.body.fullName;
  employee.office = req.body.office;
  employee.officeEmail = req.body.officeEmail;
+ employee.buildingId = req.body.buildingId;
  employee.eId = req.body.eId;
  employee.phone = req.body.phone;
  employee.approval = req.body.approval;

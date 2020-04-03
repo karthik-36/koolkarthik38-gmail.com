@@ -9,15 +9,17 @@ var employeeSchema = new mongoose.Schema({
     type : String,
     required : " Office is required"
   },
+  buildingId : {
+    type : String,
+    required : " Building ID is required"
+  },
   officeEmail : {
     type : String,
-    required : " office email is required",
-    unique: true
+    required : " office email is required"
   },
   eId : {
     type : String,
-      required : " employee id is required",
-      unique: true
+      required : " employee id is required"
   },
   phone : {
     type : String,
@@ -36,4 +38,4 @@ employeeSchema.path('officeEmail').validate((val) => {
     return emailRegex.test(val);
 }, 'Invalid e-mail.');
 
-mongoose.model('Employee' , employeeSchema)
+mongoose.model('Employee' , employeeSchema);
