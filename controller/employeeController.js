@@ -5,7 +5,79 @@ mongoose.set('useFindAndModify', false);
 const Employee = mongoose.model('Employee');
 const Admin = mongoose.model('admin');
 const Buildingsite = mongoose.model('building');
+const Offices = mongoose.model('office');
 //test
+
+
+
+
+router.post('/onPageLoad/:name', (req,res) => {
+  var str = req.params.name;
+  let buff = new Buffer(str, 'base64');
+  let bName = buff.toString('ascii');
+  Buildingsite.find({ 'buildingName': bName },(err,docs) => {
+  if(err){
+    res.send("building not found");
+  }
+  else{
+  res.send(docs);
+  }
+  });
+});
+
+
+router.post('/deleteSite/:name', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+   Buildingsite.find({ 'buildingName': req.params.name },(err,docs) => {
+    if(!err){
+      if(docs.length == 0){
+        console.log("doc is null");
+        res.send("building not found");
+      }
+      else{
+
+        console.log("Site name  " + req.body.siteName);
+        var index = -1;
+        for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
+            if(docs[0].buildingSites[i].Site[0].siteName == req.body.siteName){
+              index = i;
+              break;
+            }
+          }
+
+
+
+        if(index >= 0){
+          console.log("site found");
+          console.log("index is " + index);
+        var arr = [];
+        arr = docs[0].buildingSites;
+    //    console.log(" \n object before pushing body \n");
+    //    console.log(docs[0].buildingSites);
+      //  console.log(" \n arr before pushing body \n");
+    //    console.log(arr);
+   //      arr.push(req.body);
+          arr.splice(index, 1);
+    //    console.log(" \n arr after pushing body \n");
+    //    console.log(arr);
+        docs[0].buildingSites = arr;
+    //    console.log("\n docs after pushing body \n");
+    //    console.log(docs[0]);
+        newDoc = docs[0];
+    //    console.log("\n doc ID is \n");
+    //    console.log(docs[0].id)
+        addSite( docs[0]._id , newDoc , res);
+    }else {
+      res.send(" Site not found");
+    }
+
+      }
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
 
 
 
@@ -38,7 +110,7 @@ router.post('/addSite/:name', (req,res) => {
 
           if(siteExists){
         //    res.send("this site already exists  , updating existing site");
-            console.log("this site already exists , updating existing site");
+
             var newBuildingID = new Set();
             var newOfficeName = new Set();
             var index;
@@ -66,6 +138,9 @@ router.post('/addSite/:name', (req,res) => {
             //  console.log(earr.Site[1].buildingId);
               earr.Site[1].buildingId = earr.Site[1].buildingId.concat(newBuildingID);
               earr.Site[2].OfficeNames = earr.Site[2].OfficeNames.concat(newOfficeName);
+
+              earr.Site[1].buildingId  = [...new Set(earr.Site[1].buildingId)];
+              earr.Site[2].OfficeNames   = [...new Set(earr.Site[2].OfficeNames)];
               console.log("earr  " + JSON.stringify(earr));
 
               //////// Replacement commeth
@@ -125,7 +200,7 @@ router.post('/addSite/:name', (req,res) => {
               console.log("\n doc ID is \n");
               console.log(docs[0].id)
               addSite( docs[0]._id , newDoc , res);
-            }{
+            }else{
               res.send("Building ID already exists in a different building or site, Enter unique ID or contact KONE ");
         }
       }
@@ -217,7 +292,6 @@ router.get('/listOfficeId', (req,res) => {
   });
 });
 
-
 router.get('/listBuildingId', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
    Buildingsite.find((err,docs) => {
@@ -240,28 +314,92 @@ router.get('/listBuildingId', (req,res) => {
 });
 
 
+
+
+
+
+
 router.get('/listOffice', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
+  var arr = [];
+  var officeArr = [];
+
+    function sendJSON(){
+
+      res.send("hello" + arr);
+  //  res.json(arr);
+    }
+
+
+  async function origanalList(){
+      console.log("2");
+
    Buildingsite.find((err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
-//    var obj = JSON.parse(docs);
-//    console.log(obj.buildingName);
- var arr = [];
- for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
+
+    for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
      console.log(docs[0].buildingSites[i].Site[2].OfficeNames);
-  //   if(!arr.includes(docs[0].buildingSites[i].Site[2].OfficeNames)){
      arr = arr.concat(docs[0].buildingSites[i].Site[2].OfficeNames);
-     arr = [...new Set(arr)];
-  }
+   }
+  //////////
+  console.log("office arr " + officeArr);
+  arr = arr.concat(officeArr);
+  arr =  [...new Set(arr)];
+  console.log(arr);
   res.json(arr);
   }else{
 
     res.send(err);
     console.log(err);
   }
-  });
 });
+
+  }
+
+
+
+ function getOfficeList(callback){
+
+  Offices.find((err,docs) => {
+    if(!err){
+    for(var s = 0 ; s< docs.length ; s++){
+      console.log(" pushed "+ docs[s].officeName)
+    officeArr.push(docs[s].officeName);
+    }
+    console.log("officeArr "+ officeArr);
+    console.log("1");
+    callback();
+   }else{
+
+    console.log(err);
+  }
+  });
+
+  }
+
+
+getOfficeList(origanalList);
+
+
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 router.get('/listSites', (req,res) => {
@@ -269,9 +407,7 @@ router.get('/listSites', (req,res) => {
    Buildingsite.find((err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
-//    var obj = JSON.parse(docs);
-//    console.log(obj.buildingName);
- console.log(typeof docs);
+
  var arr = [];
  for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
      console.log(docs[0].buildingSites[i].Site[0].siteName);
@@ -315,6 +451,17 @@ Employee.find((err,docs) => {
   console.log(err);
 }
 });
+});
+
+
+router.post('/createOffice', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+  if (req.body._id == null){
+        console.log("inserting new record");
+          insertOffice(req, res);
+    } else{
+      res.send('office already exists');
+    }
 });
 
 
@@ -376,15 +523,22 @@ router.post('/create', (req,res) => {
 //check if admin username and password is correct
 router.post('/check', (req, res) => {
   res.set('Access-Control-Allow-Headers', '*');
-  Admin.exists({ username: req.body.username , password : req.body.password}, function(err, result) {
-     if (err) {
-       console.log(err);
-     } else {
-        console.log("User does exist "  + result);
-        const valid = { validity : result };
+        Admin.find({ username: req.body.username , password : req.body.password },(err,docs) => {
+
+       if(err){}else{
+        console.log(docs[0]);
+
+         var valid = {
+          "validity" : true,
+          "locationtype" : docs[0].locationType ,
+          "locationname" : docs[0].locationName ,
+          "locationid" : docs[0].locationId
+       };
+
         res.json(valid);
-     }
-   });
+      }
+      });
+
 });
 
 
@@ -401,6 +555,25 @@ router.post('/checkPhone', (req,res) => {
    });
 });
 
+
+
+
+function insertOffice(req,res){
+ var office = new Offices();
+ office.officeName = req.body.officeName;
+ office.buildingName = 'kosmoone';
+ office.save((err,doc)=>{
+
+   if(!err){
+      console.log("office added");
+      res.send('office added \n' +  office);
+   }else{
+        console.log('error during record insertion : ' + err);
+        res.send('error during record insertion : ' + err);
+   }
+ });
+
+};
 
 
 

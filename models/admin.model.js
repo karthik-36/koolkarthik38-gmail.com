@@ -9,6 +9,18 @@ var adminSchema = new mongoose.Schema({
   password : {
     type : String,
     required : "password is required"
+  },
+  locationId : {
+    type : String,
+    required : "locationId is required"
+  },
+  locationType : {
+    type : String,
+    required : "locationType is required"
+  },
+  locationName :  {
+    type : String,
+    required : "locationName is required"
   }
 });
 

@@ -5,6 +5,10 @@ var buildingSchema = new mongoose.Schema({
     type : String,
     required : " full name is required"
   },
+  locationType : {
+    type : String,
+    required : "Location Type is required"
+  },
   buildingSites : {
     type : [] ,
     required : " sites required"
