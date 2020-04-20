@@ -43,6 +43,11 @@ var employeeSchema = new mongoose.Schema({
   allowMessaging : {
     type : Boolean,
     required : "Messaging status is required"
+  },
+  permanent : {
+    type : Boolean,
+    default : true,
+    required : " permanent/temporary status is required"
   }
 
 

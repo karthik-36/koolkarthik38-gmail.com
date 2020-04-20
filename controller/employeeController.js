@@ -241,8 +241,8 @@ router.post('/Office', (req,res) => {
    Buildingsite.find((err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
-//    var obj = JSON.parse(docs);
-//    console.log(obj.buildingName);
+
+
  var arr = [];
  for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
 
@@ -465,6 +465,34 @@ router.post('/createOffice', (req,res) => {
 });
 
 
+router.get('/listApprovedVisitor', (req,res) => {
+    res.set('Access-Control-Allow-Headers', '*');
+  Employee.find({ 'approval': true , "permanent" : false }, function (err, docs) {
+    if(!err){
+    console.log("approved doc shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
+router.get('/listApprovedPermanent', (req,res) => {
+    res.set('Access-Control-Allow-Headers', '*');
+  Employee.find({ 'approval': true , "permanent" : true }, function (err, docs) {
+    if(!err){
+    console.log("approved Permanent doc shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+
 //list all approved users
 router.get('/listApproved', (req,res) => {
     res.set('Access-Control-Allow-Headers', '*');
@@ -481,6 +509,32 @@ router.get('/listApproved', (req,res) => {
 
 
 //list all unapproved users
+router.get('/listUnapprovedVisitor', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+  Employee.find({ 'approval': false , 'permanent' : false}, function (err, docs) {
+    if(!err){
+    console.log("complete doc shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
+router.get('/listUnapprovedPermanent', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+  Employee.find({ 'approval': false , 'permanent' : true}, function (err, docs) {
+    if(!err){
+    console.log("complete doc shown to user");
+    res.json(docs);
+  }else{
+    res.send(err);
+    console.log(err);
+  }
+  });
+});
+
 router.get('/listUnapproved', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
   Employee.find({ 'approval': false }, function (err, docs) {
@@ -520,6 +574,25 @@ router.post('/create', (req,res) => {
      }
 });
 
+
+// insert BULK
+
+router.post('/createBulk', (req,res) => {
+  res.set('Access-Control-Allow-Headers', '*');
+  let employeeArray = req.body.arr;
+  console.log("employee Array inserted");
+  console.log(employeeArray);
+  Employee.collection.insert(employeeArray,{ ordered : false}, function (err, docs) {
+     if (err){
+          console.error(err);
+          res.send(err);
+     } else {
+       console.log("Multiple documents inserted to Collection");
+       res.send("Multiple documents inserted to Collection");
+     }
+   });
+});
+
 //check if admin username and password is correct
 router.post('/check', (req, res) => {
   res.set('Access-Control-Allow-Headers', '*');
@@ -532,7 +605,8 @@ router.post('/check', (req, res) => {
           "validity" : true,
           "locationtype" : docs[0].locationType ,
           "locationname" : docs[0].locationName ,
-          "locationid" : docs[0].locationId
+          "locationid" : docs[0].locationId,
+          "serviceList" : docs[0].serviceList
        };
 
         res.json(valid);
@@ -554,6 +628,8 @@ router.post('/checkPhone', (req,res) => {
      }
    });
 });
+
+
 
 
 
@@ -589,6 +665,7 @@ function insertRecord(req,res){
  employee.approval = req.body.approval;
  employee.terms = req.body.terms;
  employee.allowMessaging = req.body.allowMessaging;
+ employee.permanent = req.body.permanent;
  employee.save((err,doc)=>{
 
    if(!err){

@@ -21,7 +21,13 @@ var adminSchema = new mongoose.Schema({
   locationName :  {
     type : String,
     required : "locationName is required"
+  },
+  serviceList : {
+    type :[String],
+    required : "serviceList is required"
   }
+
+
 });
 
 mongoose.model('admin' , adminSchema);
