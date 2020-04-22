@@ -6,6 +6,7 @@ require('./models/employee.model');
 require('./models/admin.model');
 require('./models/building.model');
 require('./models/office.model');
+require('./models/bids.model');
 const employeeController = require('./controller/employeeController');
 var app = express();
 app.use(bodyparser.urlencoded({

@@ -6,14 +6,152 @@ const Employee = mongoose.model('Employee');
 const Admin = mongoose.model('admin');
 const Buildingsite = mongoose.model('building');
 const Offices = mongoose.model('office');
+const Bids = mongoose.model('bids');
 //test
 
 
 
+router.post('/addBuilding', (req,res) => {
 
-router.post('/onPageLoad/:name', (req,res) => {
-  var str = req.params.name;
-  let buff = new Buffer(str, 'base64');
+let arrSites = [];
+for(i = 0 ; i <  req.body.Sites.length ; i++){
+let bsite =  {
+            "Site": [
+                {
+                    "siteName": req.body.Sites[i]
+                },
+                {
+                    "buildingId": [
+                    ]
+                },
+                {
+                    "OfficeNames": [
+                    ]
+                }
+            ]
+        };
+        arrSites.push(bsite);
+}
+
+ var newBuilding = new Buildingsite();
+ newBuilding.buildingName =  req.body.buildingName;
+ newBuilding.locationType = req.body.locationType;
+ newBuilding.buildingSites = arrSites;
+
+
+
+ var newAdmin = new Admin();
+ newAdmin.username = req.body.username;
+ newAdmin.password = req.body.password;
+ newAdmin.locationType = req.body.locationType
+ newAdmin.locationName =  req.body.buildingName;
+ newAdmin.locationId = req.body.locationId;
+ newAdmin.serviceList = req.body.serviceList;
+
+
+
+
+
+var newOffices = new Offices();
+let officeArray = [];
+for(var i = 0 ; i < req.body.offices.length ; i++){
+  var temp ={
+    officeName : req.body.offices[i] ,
+    buildingName : req.body.buildingName
+  }
+  officeArray.push(temp);
+}
+
+
+var newBids = new Bids();
+let bidsArray = [];
+for(var i = 0 ; i < req.body.buildingId.length ; i++){
+  var temp ={
+    buildingName : req.body.buildingName,
+    buildingId : req.body.buildingId[i],
+    idName : req.body.idName[i]
+  }
+  bidsArray.push(temp);
+}
+
+console.log("bids");
+console.log(bidsArray);
+console.log("office");
+console.log(officeArray);
+console.log("admin");
+console.log(newAdmin);
+console.log("buildingsite");
+console.log(JSON.stringify(newBuilding));
+
+/*
+  newBuilding.save((err,doc)=>{
+
+    if(!err){
+       console.log("");
+       res.send('building added \n' +  newBuilding);
+    }else{
+         console.log('error during record insertion : ' + err);
+         res.send('error during record insertion : ' + err);
+    }
+  });
+
+  newOffices.collection.insertMany(
+   [ <document 1> , <document 2>, ... ],
+   {
+      writeConcern: <document>,
+      ordered: <boolean>
+   }
+   );
+
+ newAdmin.collection.insertMany(
+   [ <document 1> , <document 2>, ... ],
+   {
+      writeConcern: <document>,
+      ordered: <boolean>
+   }
+  );
+
+  let officeArray = req.body.officeArray;
+  console.log("employee Array inserted");
+  console.log(employeeArray);
+  Offices.collection.insert(officeArray,{ ordered : false}, function (err, docs) {
+     if (err){
+          console.error(err);
+          res.send(err);
+     } else {
+       console.log("Multiple documents inserted to Collection");
+       res.send("Multiple documents inserted to Collection");
+     }
+   });
+
+*/
+});
+
+
+
+router.get('/buildingIdAndName', (req,res) => {
+
+const str = req.headers.buildingid;
+let buff = Buffer.from(str, 'base64');
+let bName = buff.toString('ascii');
+
+Bids.find({ buildingName : bName},(err,docs) => {
+  if(!err){
+  console.log("complete doc shown to user");
+  res.set('Access-Control-Allow-Headers', '*');
+  res.json(docs);
+}else{
+  res.set('Access-Control-Allow-Headers', '*');
+  res.send(err);
+  console.log(err);
+}
+});
+});
+
+
+router.post('/onPageLoad', (req,res) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
   let bName = buff.toString('ascii');
   Buildingsite.find({ 'buildingName': bName },(err,docs) => {
   if(err){
@@ -26,16 +164,18 @@ router.post('/onPageLoad/:name', (req,res) => {
 });
 
 
-router.post('/deleteSite/:name', (req,res) => {
+router.post('/deleteSite', (req,res) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
   res.set('Access-Control-Allow-Headers', '*');
-   Buildingsite.find({ 'buildingName': req.params.name },(err,docs) => {
+   Buildingsite.find({ 'buildingName': bName },(err,docs) => {
     if(!err){
       if(docs.length == 0){
         console.log("doc is null");
         res.send("building not found");
       }
       else{
-
         console.log("Site name  " + req.body.siteName);
         var index = -1;
         for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
@@ -44,28 +184,14 @@ router.post('/deleteSite/:name', (req,res) => {
               break;
             }
           }
-
-
-
         if(index >= 0){
           console.log("site found");
           console.log("index is " + index);
         var arr = [];
         arr = docs[0].buildingSites;
-    //    console.log(" \n object before pushing body \n");
-    //    console.log(docs[0].buildingSites);
-      //  console.log(" \n arr before pushing body \n");
-    //    console.log(arr);
-   //      arr.push(req.body);
           arr.splice(index, 1);
-    //    console.log(" \n arr after pushing body \n");
-    //    console.log(arr);
         docs[0].buildingSites = arr;
-    //    console.log("\n docs after pushing body \n");
-    //    console.log(docs[0]);
         newDoc = docs[0];
-    //    console.log("\n doc ID is \n");
-    //    console.log(docs[0].id)
         addSite( docs[0]._id , newDoc , res);
     }else {
       res.send(" Site not found");
@@ -84,11 +210,12 @@ router.post('/deleteSite/:name', (req,res) => {
 
 
 
-router.post('/addSite/:name', (req,res) => {
+router.post('/addSite', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
-   Buildingsite.find({ 'buildingName': req.params.name },(err,docs) => {
-
-
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
+   Buildingsite.find({ 'buildingName': bName },(err,docs) => {
     if(!err){
       if(docs.length == 0){
         console.log("doc is null");
@@ -219,6 +346,7 @@ router.get('/', (req,res) => {
   res.send('empty response')
 });
 
+
 router.post('/listEmployeeSite', (req,res) => {
     res.set('Access-Control-Allow-Headers', '*');
 
@@ -238,7 +366,10 @@ router.post('/Office', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
   //console.log(req.body.officeName);
   var officeName = req.body.officeName;
-   Buildingsite.find((err,docs) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
+   Buildingsite.find({"buildingName" : bName},(err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
 
@@ -267,14 +398,16 @@ router.post('/Office', (req,res) => {
 
 router.get('/listOfficeId', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
-   Buildingsite.find((err,docs) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
+   Buildingsite.find({"buildingName" : bName },(err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
 //    var obj = JSON.parse(docs);
 //    console.log(obj.buildingName);
  var arr = [];
  for(var i = 0 ; i< docs[0].buildingSites.length ; i++){
-
      for(var s = 0 ; s< docs[0].buildingSites[i].Site[2].OfficeNames.length ; s++){
        var obj = {
                  OfficeName : docs[0].buildingSites[i].Site[2].OfficeNames[s],
@@ -292,9 +425,14 @@ router.get('/listOfficeId', (req,res) => {
   });
 });
 
+
+
 router.get('/listBuildingId', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
-   Buildingsite.find((err,docs) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
+   Buildingsite.find({ "buildingName" : bName },(err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
 //    var obj = JSON.parse(docs);
@@ -306,7 +444,6 @@ router.get('/listBuildingId', (req,res) => {
   }
   res.json(arr);
   }else{
-
     res.send(err);
     console.log(err);
   }
@@ -321,20 +458,17 @@ router.get('/listBuildingId', (req,res) => {
 
 router.get('/listOffice', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
   var arr = [];
   var officeArr = [];
-
     function sendJSON(){
-
       res.send("hello" + arr);
-  //  res.json(arr);
     }
-
-
   async function origanalList(){
       console.log("2");
-
-   Buildingsite.find((err,docs) => {
+   Buildingsite.find({"buildingName" : bName},(err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
 
@@ -342,7 +476,6 @@ router.get('/listOffice', (req,res) => {
      console.log(docs[0].buildingSites[i].Site[2].OfficeNames);
      arr = arr.concat(docs[0].buildingSites[i].Site[2].OfficeNames);
    }
-  //////////
   console.log("office arr " + officeArr);
   arr = arr.concat(officeArr);
   arr =  [...new Set(arr)];
@@ -360,7 +493,6 @@ router.get('/listOffice', (req,res) => {
 
 
  function getOfficeList(callback){
-
   Offices.find((err,docs) => {
     if(!err){
     for(var s = 0 ; s< docs.length ; s++){
@@ -371,32 +503,13 @@ router.get('/listOffice', (req,res) => {
     console.log("1");
     callback();
    }else{
-
     console.log(err);
   }
   });
 
   }
-
-
 getOfficeList(origanalList);
-
-
-
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -404,7 +517,10 @@ getOfficeList(origanalList);
 
 router.get('/listSites', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
-   Buildingsite.find((err,docs) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
+   Buildingsite.find({"buildingName" : bName},(err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
 
@@ -425,7 +541,10 @@ router.get('/listSites', (req,res) => {
 
 router.get('/buildingDetails', (req,res) => {
   res.set('Access-Control-Allow-Headers', '*');
-   Buildingsite.find((err,docs) => {
+  const str = req.headers.buildingid;
+  let buff = Buffer.from(str, 'base64');
+  let bName = buff.toString('ascii');
+   Buildingsite.find({"buildingName" : bName},(err,docs) => {
     if(!err){
     console.log("complete doc shown to user");
     res.set('Access-Control-Allow-Headers', '*');
