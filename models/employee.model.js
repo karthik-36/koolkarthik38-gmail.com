@@ -48,7 +48,12 @@ var employeeSchema = new mongoose.Schema({
     type : Boolean,
     default : true,
     required : " permanent/temporary status is required"
-  }
+  },
+  buildingName : {
+    type : String,
+    required : "buildingName status is required"
+  },
+
 
 
 });
