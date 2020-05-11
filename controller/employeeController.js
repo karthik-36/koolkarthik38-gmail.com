@@ -12,9 +12,7 @@ const Bids = mongoose.model("bids");
 router.post("/addAdmin", (req, res) => {
   const toLow = req.body.buildingName.replace(/ +/g, "");
   const lowBuildingName = toLow.toLowerCase();
-  const buff = new Buffer(lowBuildingName);
-  const base64data = buff.toString("base64");
-
+  base64data = base_64(lowBuildingName,req.body.locationType);
   var newAdmin = new Admin();
 
   newAdmin.username = req.body.username;
@@ -140,11 +138,145 @@ router.post("/addBuilding", (req, res) => {
   }
 });
 
-router.get("/buildingIdAndName", (req, res) => {
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
 
+
+//  } else {
+//    res.set("Access-Control-Allow-Headers", "*");
+//      res.send(err);
+//      console.log(err);
+//    }
+
+router.post("/AddSiteByName", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let buildingIdList = [];
+  function showName(){
+    console.log("my name is karthik");
+  }
+
+  let localList =req.body.Site[1].buildingId;
+//  console.log(localList);
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
+  Bids.find({ buildingName: bName, idName : localList }).then(docs => {
+    //  console.log(docs);
+    //  showName();
+      for(var i = 0 ; i < docs.length ; i++){
+        buildingIdList.push(docs[i].buildingId);
+      }
+       console.log(buildingIdList);
+
+       if(buildingIdList.length == 0){
+         throw new Error("local name => buildingId   pair not found");
+         //return reject();
+       }
+      return buildingIdList;
+
+   }).then(buildingIdList =>{
+
+    req.body.Site[1].buildingId = buildingIdList;
+//    res.send(req.body);
+
+      Buildingsite.find({ buildingName: bName }, (err, docs) => {
+        if (!err) {
+          if (docs.length == 0) {
+            res.send("building not found");
+          } else {
+
+
+            var siteExists = false;
+            siteArr = [];
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
+            }
+
+            if (siteArr.includes(req.body.Site[0].siteName)) {
+              siteExists = true;
+            }
+
+            if (siteExists) {
+
+              var newBuildingID = new Set();
+              var newOfficeName = new Set();
+              var index;
+              newBuildingID = req.body.Site[1].buildingId;
+              newOfficeName = req.body.Site[2].OfficeNames;
+
+              var earr;
+              for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                if (
+                  docs[0].buildingSites[i].Site[0].siteName ==
+                  req.body.Site[0].siteName
+                ) {
+                  index = i;
+                  earr = docs[0].buildingSites[i];
+                  break;
+                }
+              }
+
+
+              earr.Site[1].buildingId = earr.Site[1].buildingId.concat(
+                newBuildingID
+              );
+              earr.Site[2].OfficeNames = earr.Site[2].OfficeNames.concat(
+                newOfficeName
+              );
+
+              earr.Site[1].buildingId = [...new Set(earr.Site[1].buildingId)];
+              earr.Site[2].OfficeNames = [...new Set(earr.Site[2].OfficeNames)];
+              //////// Replacement commeth
+              var arr = [];
+              arr = docs[0].buildingSites;
+              arr[index] = earr;
+              docs[0].buildingSites = arr;
+              newDoc = docs[0];
+              addSite(docs[0]._id, newDoc, res);
+            } else {
+              var bidArr = [];
+              var flag = true;
+              for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+              }
+
+
+              for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
+                if (bidArr.includes(req.body.Site[1].buildingId[i])) {
+                  flag = false;
+                  break;
+                }
+              }
+
+              if (flag) {
+                var arr = [];
+                arr = docs[0].buildingSites;
+                arr.push(req.body);
+                docs[0].buildingSites = arr;
+                newDoc = docs[0];
+                addSite(docs[0]._id, newDoc, res);
+              } else {
+                res.send(
+                  "Building ID already exists in a different building or site, Enter unique ID or contact KONE "
+                );
+              }
+            }
+          }
+        } else {
+          res.send(err);
+        }
+      });
+
+  }).catch( err => {
+    let str = '';
+    str = str + err;
+    console.log(str)
+    res.send(str)
+  })
+}
+});
+
+
+router.get("/buildingIdAndName", (req, res) => {
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Bids.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -156,12 +288,12 @@ router.get("/buildingIdAndName", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.post("/onPageLoad", (req, res) => {
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (err) {
       res.send("building not found");
@@ -169,12 +301,12 @@ router.post("/onPageLoad", (req, res) => {
       res.send(docs);
     }
   });
+}
 });
 
 router.post("/deleteSite", (req, res) => {
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   res.set("Access-Control-Allow-Headers", "*");
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
@@ -204,15 +336,14 @@ router.post("/deleteSite", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 
 router.post("/addSite", (req, res) => {
-  console.log(base_64("karthik", "singh"));
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       if (docs.length == 0) {
@@ -298,6 +429,7 @@ router.post("/addSite", (req, res) => {
       res.send(err);
     }
   });
+}
 });
 
 router.get("/", (req, res) => {
@@ -319,11 +451,9 @@ router.post("/listEmployeeSite", (req, res) => {
 
 router.post("/Office", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  //console.log(req.body.officeName);
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   var officeName = req.body.officeName;
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -351,6 +481,7 @@ router.post("/Office", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listOfficeId", (req, res) => {
@@ -385,9 +516,8 @@ router.get("/listOfficeId", (req, res) => {
 
 router.get("/listLocationAndOfficeName", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -410,14 +540,14 @@ router.get("/listLocationAndOfficeName", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listBuildingId", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   console.log("header is : " +  req.headers.buildingid)
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -434,13 +564,13 @@ router.get("/listBuildingId", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listOffice", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   var arr = [];
   var officeArr = [];
   function sendJSON() {
@@ -466,6 +596,7 @@ router.get("/listOffice", (req, res) => {
         console.log(err);
       }
     });
+   }
   }
 
   function getOfficeList(callback) {
@@ -488,9 +619,8 @@ router.get("/listOffice", (req, res) => {
 
 router.get("/listSites", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -506,13 +636,13 @@ router.get("/listSites", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/buildingDetails", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -524,6 +654,7 @@ router.get("/buildingDetails", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 //return full list
@@ -553,9 +684,8 @@ router.post("/createOffice", (req, res) => {
 
 router.get("/listApprovedVisitor", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Employee.find({ approval: true, permanent: false , buildingName : bName }, function (err, docs) {
     if (!err) {
       console.log("approved doc shown to user");
@@ -565,13 +695,13 @@ router.get("/listApprovedVisitor", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listApprovedPermanent", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Employee.find({ approval: true, permanent: true , buildingName : bName}, function (err, docs) {
     if (!err) {
       console.log("approved Permanent doc shown to user");
@@ -581,6 +711,7 @@ router.get("/listApprovedPermanent", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 //list all approved users
@@ -600,9 +731,8 @@ router.get("/listApproved", (req, res) => {
 //list all unapproved users
 router.get("/listUnapprovedVisitor", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Employee.find({ approval: false, permanent: false , buildingName : bName   }, function (err, docs) {
     if (!err) {
       console.log("complete doc shown to user");
@@ -612,13 +742,13 @@ router.get("/listUnapprovedVisitor", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listUnapprovedPermanent", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Employee.find({ approval: false, permanent: true , buildingName : bName }, function (err, docs) {
     if (!err) {
       console.log("complete doc shown to user");
@@ -628,6 +758,7 @@ router.get("/listUnapprovedPermanent", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listUnapproved", (req, res) => {
