@@ -10,7 +10,7 @@ const Bids = mongoose.model("bids");
 //test//
 
 router.post("/addAdmin", (req, res) => {
-  const toLow = req.body.buildingName;
+  const toLow = req.body.buildingName.replace(/ +/g, "");
   const lowBuildingName = toLow.toLowerCase();
   const buff = new Buffer(lowBuildingName);
   const base64data = buff.toString("base64");
@@ -36,7 +36,9 @@ router.post("/addAdmin", (req, res) => {
 });
 
 router.post("/addBuilding", (req, res) => {
-  const toLow = req.body.buildingName;
+  let resultHolder = '';
+  const toLow = req.body.buildingName.replace(/ +/g, "");;
+
   const lowBuildingName = toLow.toLowerCase();
   const buff = new Buffer(lowBuildingName);
   const base64data = buff.toString("base64");
@@ -88,6 +90,7 @@ router.post("/addBuilding", (req, res) => {
     } else {
       console.log("Multiple documents inserted to Collection");
       //     res.send("Multiple documents inserted to Collection");
+      resultHolder = resultHolder + " Office Collection Added ,  "
     }
   });
 
@@ -113,7 +116,7 @@ router.post("/addBuilding", (req, res) => {
   ) {
     newBuilding.save((err, doc) => {
       if (!err) {
-        console.log("");
+        resultHolder = resultHolder + " New Building Added ,  ";
       } else {
         console.log("error during record insertion : " + err);
       }
@@ -124,13 +127,14 @@ router.post("/addBuilding", (req, res) => {
     Bids.collection.insert(bidsArray, { ordered: false }, function (err, docs) {
       if (err) {
         console.error(err);
-        res.send(err);
       } else {
         console.log("Multiple documents inserted to Collection");
+          resultHolder = resultHolder + "  Building id sets added ,  ";
       }
     });
 
-    res.send(" new Building  created ");
+    res.send("buildingid : " +base_64(req.body.buildingName,req.body.locationType) + " \n " + resultHolder);
+    console.log(resultHolder);
   } else {
     res.send("Error during insertion");
   }
@@ -177,7 +181,6 @@ router.post("/deleteSite", (req, res) => {
       if (docs.length == 0) {
         res.send("building not found");
       } else {
-        console.log("Site name  " + req.body.siteName);
         var index = -1;
         for (var i = 0; i < docs[0].buildingSites.length; i++) {
           if (docs[0].buildingSites[i].Site[0].siteName == req.body.siteName) {
@@ -203,7 +206,9 @@ router.post("/deleteSite", (req, res) => {
   });
 });
 
+
 router.post("/addSite", (req, res) => {
+  console.log(base_64("karthik", "singh"));
   res.set("Access-Control-Allow-Headers", "*");
   const str = req.headers.buildingid;
   let buff = Buffer.from(str, "base64");
@@ -213,15 +218,11 @@ router.post("/addSite", (req, res) => {
       if (docs.length == 0) {
         res.send("building not found");
       } else {
-        // kosmo one exists
         var siteExists = false;
         siteArr = [];
         for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          console.log(docs[0].buildingSites[i].Site[0].siteName);
           siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
         }
-
-        console.log(siteArr);
 
         if (siteArr.includes(req.body.Site[0].siteName)) {
           siteExists = true;
@@ -268,11 +269,9 @@ router.post("/addSite", (req, res) => {
           var bidArr = [];
           var flag = true;
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            console.log(docs[0].buildingSites[i].Site[1].buildingId);
             bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
           }
 
-          console.log("All buildingIDs" + bidArr);
 
           for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
             if (bidArr.includes(req.body.Site[1].buildingId[i])) {
@@ -297,7 +296,6 @@ router.post("/addSite", (req, res) => {
       }
     } else {
       res.send(err);
-      console.log(err);
     }
   });
 });
@@ -311,7 +309,6 @@ router.post("/listEmployeeSite", (req, res) => {
 
   Employee.find({ sites: req.body.site }, function (err, docs) {
     if (!err) {
-      console.log("site -> employee shown to user");
       res.json(docs);
     } else {
       res.send(err);
@@ -358,9 +355,8 @@ router.post("/Office", (req, res) => {
 
 router.get("/listOfficeId", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  const str = req.headers.buildingid;
-  let buff = Buffer.from(str, "base64");
-  let bName = buff.toString("ascii");
+  let bName = to_ascii(res,req.headers.buildingid);
+  if(bName != -1){
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       var arr = [];
@@ -384,6 +380,7 @@ router.get("/listOfficeId", (req, res) => {
       console.log(err);
     }
   });
+}
 });
 
 router.get("/listLocationAndOfficeName", (req, res) => {
@@ -797,13 +794,13 @@ function updateRecord(req, res) {
 }
 
 function addSite(id, newDoc, res) {
+
   Buildingsite.findOneAndUpdate(
     { _id: id },
     newDoc,
     { new: true },
     (err, doc) => {
       if (!err) {
-        //res.send("record updated with  \n" + JSON.stringify(newDoc));
         res.json(newDoc);
       } else {
         if (err.name == "ValidationError") {
@@ -817,6 +814,26 @@ function addSite(id, newDoc, res) {
     }
   );
 }
+
+function base_64(str1, str2){
+return Buffer.from((str1+":"+str2)).toString('base64');
+}
+
+function to_ascii(res,str){
+if(str != ""){
+  str = Buffer.from(str,'base64').toString('ascii');
+  if(str.includes(":office") || str.includes(":residential")){
+      return str.split(":")[0];
+   }else{
+       res.send("buildingid header is not valid");
+       return -1;
+   }
+}else{
+    res.send("buildingid is missing");
+    return -1;
+    }
+}
+
 
 function validateEmail(email) {
   var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
