@@ -501,11 +501,7 @@ router.post("/Office", (req, res) => {
     if (!err) {
       var arr = [];
       for (var i = 0; i < docs[0].buildingSites.length; i++) {
-        for (
-          var s = 0;
-          s < docs[0].buildingSites[i].Site[2].OfficeNames.length;
-          s++
-        ) {
+        for (var s = 0;s < docs[0].buildingSites[i].Site[2].OfficeNames.length;s++) {
           if (docs[0].buildingSites[i].Site[2].OfficeNames[s] == officeName) {
             var obj = {
               Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
@@ -896,11 +892,7 @@ router.post("/create", (req, res) => {
   let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
   if(bName != -1){
   if (req.body._id == null) {
-    console.log("first");
-    console.log(req.body);
     req.body.buildingName = bName;
-    console.log("second");
-    console.log(req.body);
     console.log("inserting new record");
     insertRecord(req, res);
   } else {
@@ -1025,6 +1017,7 @@ function insertRecord(req, res) {
   employee.allowMessaging = req.body.allowMessaging;
   employee.permanent = req.body.permanent;
   employee.buildingName = req.body.buildingName;
+  employee.createdAt =  new Date();
   employee.save((err, doc) => {
     if (!err) {
       console.log("New employee created");
@@ -1064,6 +1057,28 @@ function updateRecord(req, res) {
     console.log("invalid email");
   }
 }
+
+
+
+
+
+
+function updateRecordInterval(req) {
+    Employee.findOneAndUpdate({ _id: req.body._id },req.body,{ new: true },(err, doc) => {
+        if (!err) {
+          console.log("Record Updated");
+        } else {
+          if (err.name == "ValidationError") {
+            console.log("volidation error");
+          } else {
+            console.log("Error during record update : " + err);
+          }
+        }
+      }
+    );
+}
+
+
 
 
 
@@ -1165,5 +1180,34 @@ function validateEmail(email) {
   var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
   return re.test(String(email).toLowerCase());
 }
+
+
+
+
+
+function inValidateEmployee(){
+console.log("interval Called");
+Employee.find({ approval: true, permanent: false }, function (err, docs) {
+  if (!err) {
+      for(var i = 0 ; i < docs.length ; i++){
+        let employeeCreatedAt = docs[i].createdAt;
+        let current =  new Date();
+        if((current - employeeCreatedAt) < 86500000){
+          console.log(" employee is valid " + (current - employeeCreatedAt))
+        }else{
+          console.log(" employee is not valid anymore");
+          let newBody = docs[i];
+          newBody.approval = false;
+          updateRecordInterval(newBody);
+        }
+      }
+  } else {
+    console.log(err);
+  }
+});
+}
+setInterval(inValidateEmployee,3600000);
+
+
 
 module.exports = router;

@@ -53,6 +53,9 @@ var employeeSchema = new mongoose.Schema({
     type : String,
     required : "buildingName status is required"
   },
+  createdAt : {
+    type : Date 
+  }
 
 });
 
