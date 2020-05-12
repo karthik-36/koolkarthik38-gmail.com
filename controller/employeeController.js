@@ -1067,6 +1067,7 @@ function updateRecord(req, res) {
 
 
 
+
 // add / Update Existing Site
 function addSite(id, newDoc, res) {
   Buildingsite.findOneAndUpdate(
@@ -1088,6 +1089,7 @@ function addSite(id, newDoc, res) {
     }
   );
 }
+
 
 
 // text => base64
@@ -1119,9 +1121,6 @@ if(str != ""){
 function customSearch(str , search , withinBuilding){
   str = str.toLowerCase();
   search = search.toLowerCase();
-//  str = str.toString();
-  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-
   let pushIndex = 0;;
   let idHolder;
   while(pushIndex != -1){
@@ -1142,10 +1141,8 @@ function customSearch(str , search , withinBuilding){
       }
     }
   }
-
-  str = str.replace(/[a-zA-Z]*:/g, '');
+  str = str.replace(/(?!i)(?!d)(?!:)[a-zA-Z]*:/g, '');
   console.log(str);
-//  console.log(str)
   let idList = [];
   let index = 0;
   while(index != -1){
@@ -1160,6 +1157,7 @@ function customSearch(str , search , withinBuilding){
   }
   return idList;
 }
+
 
 
 // validate Email

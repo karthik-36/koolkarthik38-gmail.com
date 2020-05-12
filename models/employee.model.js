@@ -63,4 +63,3 @@ employeeSchema.path('officeEmail').validate((val) => {
 
 employeeSchema.index({ buildingName : "text" , fullName : "text"});
 mongoose.model('employees' , employeeSchema);
-//mongoose.model('employees' , employeeSchema);
