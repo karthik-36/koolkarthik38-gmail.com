@@ -54,8 +54,6 @@ var employeeSchema = new mongoose.Schema({
     required : "buildingName status is required"
   },
 
-
-
 });
 
 employeeSchema.path('officeEmail').validate((val) => {
@@ -63,4 +61,6 @@ employeeSchema.path('officeEmail').validate((val) => {
     return emailRegex.test(val);
 }, 'Invalid e-mail.');
 
-mongoose.model('Employee' , employeeSchema);
+employeeSchema.index({ buildingName : "text" , fullName : "text"});
+mongoose.model('employees' , employeeSchema);
+//mongoose.model('employees' , employeeSchema);

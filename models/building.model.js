@@ -16,4 +16,5 @@ var buildingSchema = new mongoose.Schema({
    }
 });
 
-mongoose.model('building' , buildingSchema);
+buildingSchema.index({ buildingName : "text" , buildingSites : "text"});
+mongoose.model('buildings' , buildingSchema);
