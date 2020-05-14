@@ -12,6 +12,8 @@ const util = require('util')
 
 
 
+
+
 // Custom Search Refer to customSearch Function
 router.post("/customSearch", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
@@ -46,31 +48,6 @@ router.post("/search", (req, res) => {
 
 
 
-
-
-
-// Add New Administrator
-router.post("/addAdmin", (req, res) => {
-  const toLow = req.body.buildingName.replace(/ +/g, "");
-  const lowBuildingName = toLow.toLowerCase();
-  base64data = base_64(lowBuildingName,req.body.locationType);
-  var newAdmin = new Admin();
-
-  newAdmin.username = req.body.username;
-  newAdmin.password = req.body.password;
-  newAdmin.locationType = req.body.locationType;
-  newAdmin.locationName = lowBuildingName;
-  newAdmin.locationId = base64data;
-  newAdmin.serviceList = req.body.serviceList;
-
-  newAdmin.save((err, doc) => {
-    if (!err) {
-      res.send("building added \n" + newAdmin);
-    } else {
-      res.send("error during insertion: " + err);
-    }
-  });
-});
 
 
 
@@ -306,13 +283,14 @@ router.post("/AddSiteByName", (req, res) => {
 
 // List All Buildingid  ===> Local Name   Pairs
 router.get("/buildingIdAndName", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
   if(bName != -1){
   Bids.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
+      res.set("Access-Control-Allow-Headers", "*");
       res.json(docs);
     } else {
+      res.set("Access-Control-Allow-Headers", "*");
       res.send(err);
       console.log(err);
     }
@@ -470,23 +448,6 @@ router.post("/addSite", (req, res) => {
   });
 }
 });
-
-
-
-
-router.post("/listEmployeeSite", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  Employee.find({ sites: req.body.site }, function (err, docs) {
-    if (!err) {
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-});
-
-
 
 
 // List offices in a particular building
@@ -673,7 +634,6 @@ router.get("/listSites", (req, res) => {
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
-
       var arr = [];
       for (var i = 0; i < docs[0].buildingSites.length; i++) {
         console.log(docs[0].buildingSites[i].Site[0].siteName);
@@ -713,296 +673,32 @@ router.get("/buildingDetails", (req, res) => {
 });
 
 
+
+
+
+
 // create New Office
 router.post("/createOffice", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
   if (req.body._id == null) {
     console.log("inserting new record");
-    insertOffice(req, res, bName);
+    insertOffice(req, res);
   } else {
     res.send("office already exists");
   }
-}
 });
 
 
-
-//return full list of employess
-router.get("/listAll", (req, res) => {
-  Employee.find((err, docs) => {
-    if (!err) {
-      console.log("complete doc shown to user");
-      res.set("Access-Control-Allow-Headers", "*");
-      res.json(docs);
-    } else {
-      res.set("Access-Control-Allow-Headers", "*");
-      res.send(err);
-      console.log(err);
-    }
-  });
-});
-
-
-
-
-
-
-
-
-// List Approved and Visitor status
-router.get("/listApprovedVisitor", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  // ex
-  //let current = curdate - (24 * 3600);
-
-//
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  Employee.find({ approval: true, permanent: false , buildingName : bName }, function (err, docs) {
-    // expiry date
-    // current date
-    if (!err) {
-      console.log("approved doc shown to user");
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-}
-});
-
-
-
-
-// list Approved and permanent
-router.get("/listApprovedPermanent", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  Employee.find({ approval: true, permanent: true , buildingName : bName}, function (err, docs) {
-    if (!err) {
-      console.log("approved Permanent doc shown to user");
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-}
-});
-
-
-
-
-
-//list all approved users
-router.get("/listApproved", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  Employee.find({ approval: true }, function (err, docs) {
-    if (!err) {
-      console.log("approved doc shown to user");
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-});
-
-
-
-
-
-//list all unapproved  and visitor status users
-router.get("/listUnapprovedVisitor", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  Employee.find({ approval: false, permanent: false , buildingName : bName   }, function (err, docs) {
-    if (!err) {
-      console.log("complete doc shown to user");
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-}
-});
-
-
-
-
-
-// list UnApproved And Permanent
-router.get("/listUnapprovedPermanent", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  Employee.find({ approval: false, permanent: true , buildingName : bName }, function (err, docs) {
-    if (!err) {
-      console.log("complete doc shown to user");
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-}
-});
-
-
-
-
-
-// List all Unapproved
-router.get("/listUnapproved", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  Employee.find({ approval: false }, function (err, docs) {
-    if (!err) {
-      console.log("complete doc shown to user");
-      res.json(docs);
-    } else {
-      res.send(err);
-      console.log(err);
-    }
-  });
-}
-});
-
-
-
-
-
-//delete record
-router.get("/delete/:id", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  Employee.findByIdAndRemove(req.params.id, (err, doc) => {
-    if (!err) {
-      res.send("record deleted");
-    } else {
-      console.log("Error in employee delete :" + err);
-    }
-  });
-}
-});
-
-
-
-
-
-
-//insert new user / update existing user
-router.post("/create", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  if (req.body._id == null) {
-    req.body.buildingName = bName;
-    console.log("inserting new record");
-    insertRecord(req, res);
-  } else {
-    console.log("updating existing record");
-    updateRecord(req, res);
-  }
- }
-});
-
-
-
-
-
-// insert BULK
-router.post("/createBulk", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
-  if(bName != -1){
-  let employeeArray = req.body.arr;
-  for(var i = 0 ; i < employeeArray.length ; i++){
-    employeeArray[i].buildingName = bName;
-    employeeArray[i].createdAt = new Date();
-  }
-  console.log("employee Array inserted");
-  console.log(employeeArray);
-  Employee.collection.insert(employeeArray, { ordered: false }, function (
-    err,
-    docs
-  ) {
-    if (err) {
-      console.error(err);
-      res.send(err);
-    } else {
-      res.send("Multiple documents inserted to Collection");
-    }
-  });
-}
-});
-
-
-
-
-
-//check if admin username and password is correct
-router.post("/check", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  Admin.find(
-    { username: req.body.username, password: req.body.password },
-    (err, docs) => {
-      if (err) {
-      } else if (docs[0] == undefined) {
-        res.send("user not found");
-      } else {
-        console.log(docs[0]);
-
-        var valid = {
-          validity: true,
-          locationtype: docs[0].locationType,
-          locationname: docs[0].locationName,
-          locationid: docs[0].locationId,
-          serviceList: docs[0].serviceList
-        };
-
-        res.json(valid);
-      }
-    }
-  );
-});
-
-
-
-
-
-
-// Check if Phone number exists in employee DataBase
-router.post("/checkPhone", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  Employee.exists({ phone: req.body.phone }, function (err, result) {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Exist " + result);
-      const valid = { exists: result };
-      res.json(valid);
-    }
-  });
-});
 
 
 
 
 
 // Insert New Office
-function insertOffice(req, res , bName) {
+function insertOffice(req, res) {
   var office = new Offices();
   office.officeName = req.body.officeName;
-  office.buildingName = bName;
+  office.buildingName = "kosmoone";
   office.save((err, doc) => {
     if (!err) {
       console.log("office added");
@@ -1012,90 +708,6 @@ function insertOffice(req, res , bName) {
       res.send("error during record insertion : " + err);
     }
   });
-}
-
-
-
-
-
-
-// Insert Employee Record Function
-function insertRecord(req, res) {
-  var employee = new Employee();
-  employee.fullName = req.body.fullName;
-  employee.office = req.body.office;
-  employee.officeEmail = req.body.officeEmail;
-  employee.buildingId = req.body.buildingId;
-  employee.sites = req.body.sites;
-  employee.eId = req.body.eId;
-  employee.phone = req.body.phone;
-  employee.approval = req.body.approval;
-  employee.terms = req.body.terms;
-  employee.allowMessaging = req.body.allowMessaging;
-  employee.permanent = req.body.permanent;
-  employee.buildingName = req.body.buildingName;
-  employee.createdAt =  new Date();
-  // add expiry date  new Date(); + 24 hrs
-  employee.save((err, doc) => {
-    if (!err) {
-      console.log("New employee created");
-      res.send("employee created \n" + employee);
-    } else {
-      console.log("error during record insertion : " + err);
-      res.send("error during record insertion : " + err);
-    }
-  });
-}
-
-
-
-
-
-// Update existing Record
-function updateRecord(req, res) {
-  if (validateEmail(req.body.officeEmail)) {
-    Employee.findOneAndUpdate(
-      { _id: req.body._id },
-      req.body,
-      { new: true },
-      (err, doc) => {
-        if (!err) {
-          res.send("record updated with  \n" + JSON.stringify(req.body));
-        } else {
-          if (err.name == "ValidationError") {
-            console.log("volidation error");
-            res.send("validation error " + err);
-          } else {
-            console.log("Error during record update : " + err);
-            res.send("Error during record update : " + err);
-          }
-        }
-      }
-    );
-  } else {
-    res.send("invalid email");
-    console.log("invalid email");
-  }
-}
-
-
-
-
-
-
-function updateRecordInterval(req) {
-    Employee.findOneAndUpdate({ _id: req.body._id },req.body,{ new: true },(err, doc) => {
-        if (!err) {
-          console.log("Record Updated");
-        } else {
-          if (err.name == "ValidationError") {
-            console.log("volidation error");
-          } else {
-            console.log("Error during record update : " + err);
-          }
-        }
-      }
-    );
 }
 
 
@@ -1200,34 +812,6 @@ function validateEmail(email) {
   var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
   return re.test(String(email).toLowerCase());
 }
-
-
-
-
-
-function inValidateEmployee(){
-console.log("interval Called");
-Employee.find({ approval: true, permanent: false }, function (err, docs) {
-  if (!err) {
-      for(var i = 0 ; i < docs.length ; i++){
-        let employeeCreatedAt = docs[i].createdAt;
-        let current =  new Date();
-        if((current - employeeCreatedAt) < 86500000){
-          console.log(" employee is valid " + (current - employeeCreatedAt))
-        }else{
-          console.log(" employee is not valid anymore");
-          let newBody = docs[i];
-          newBody.approval = false;
-          updateRecordInterval(newBody);
-        }
-      }
-  } else {
-    console.log(err);
-  }
-});
-}
-setInterval(inValidateEmployee,3600000);
-
 
 
 module.exports = router;
