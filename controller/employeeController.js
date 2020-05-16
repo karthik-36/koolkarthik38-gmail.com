@@ -537,7 +537,6 @@ router.get("/listOfficeId", (req, res) => {
       }
 
 
-      console.log("arrbid below")
       console.log(arrbid)
       let pair = [];
       Bids.find({ buildingName: bName, buildingId : arrbid }).then(bds => {
@@ -556,11 +555,8 @@ router.get("/listOfficeId", (req, res) => {
             pair[i] = [arrbid[i] , "id Not Mapped yet" ];
           }
         }
-        console.log("pair");
-        console.log(pair);
         return pair
      }).then(pair =>{
-        console.log("inside then");
         var arr = [];
         for (var i = 0; i < docs[0].buildingSites.length; i++) {
 
@@ -577,7 +573,6 @@ router.get("/listOfficeId", (req, res) => {
                 }
               }
             }
-            console.log(finalPair)
 
 
             var obj = {
@@ -714,8 +709,6 @@ router.get("/listOffice", (req, res) => {
 
 
 
-
-
 // list Sites of a particular Building
 router.get("/listSites", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
@@ -749,19 +742,69 @@ router.get("/buildingDetails", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
   if(bName != -1){
+    let pair = [];
   Buildingsite.find({ buildingName: bName }, (err, docs) => {
     if (!err) {
-      console.log("complete doc shown to user");
-      res.set("Access-Control-Allow-Headers", "*");
-      res.json(docs);
+
+      var arr = [];
+      var buildingSet = [];
+      for (var i = 0; i < docs[0].buildingSites.length; i++) {
+        buildingSet[i] = docs[0].buildingSites[i].Site[1].buildingId;
+        arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+      }
+      console.log(arr)
+      console.log(buildingSet)
+
+
+      Bids.find({ buildingName: bName, buildingId : arr }).then(bds => {
+        console.log(bds);
+        console.log("\n");
+        let flag;
+        for(var i = 0 ; i< arr.length ; i++){
+          flag = false;
+          for(var s = 0 ; s< bds.length ; s++){
+             if(arr[i] == bds[s].buildingId){
+               pair[i] = [arr[i] , bds[s].idName];
+               flag = true;
+             }
+          }
+          if(flag == false){
+            pair[i] = [arr[i] , "id Not Mapped yet" ];
+          }
+        }
+        return pair;
+     }).then(pair =>{
+
+       let pairSet = [];
+       for (var u = 0; u < docs[0].buildingSites.length; u++) {
+         pairSet = [];
+         for(var x = 0 ; x < docs[0].buildingSites[u].Site[1].buildingId.length  ; x++){
+                console.log(docs[0].buildingSites[u].Site[1].buildingId[x]);
+                for(var t = 0 ; t < pair.length ; t++){
+                  if(docs[0].buildingSites[u].Site[1].buildingId[x] == pair[t][0]){
+                    pairSet.push(pair[t]);
+                    break;
+                    }
+               }
+          }
+          docs[0].buildingSites[u].Site[1].buildingId = pairSet;
+          console.log("\n")
+       }
+
+        console.log(pair);
+        res.json(docs);
+
+      });
+
     } else {
-      res.set("Access-Control-Allow-Headers", "*");
       res.send(err);
       console.log(err);
     }
   });
 }
 });
+
+
 
 
 // create New Office
@@ -1135,7 +1178,7 @@ function updateRecord(req, res) {
 
 
 function updateRecordInterval(req) {
-    Employee.findOneAndUpdate({ _id : req.body._id }, req.body , { new: true },(err, doc) => {
+    Employee.findOneAndUpdate({  _id : req.body._id } , req.body , { new: true },(err, doc) => {
         if (!err) {
           console.log("Record Updated");
         } else {
@@ -1269,7 +1312,7 @@ Employee.find({ approval: true, permanent: false }, function (err, docs) {
           console.log(" employee is not valid anymore");
           let newBody = docs[i];
           newBody.approval = false;
-          if(newBody != null){
+          if(newBody.body != null){
             updateRecordInterval(newBody);
           }
         }
