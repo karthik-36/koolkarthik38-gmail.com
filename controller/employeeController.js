@@ -65,12 +65,80 @@ router.post("/addAdmin", (req, res) => {
 
   newAdmin.save((err, doc) => {
     if (!err) {
-      res.send("building added \n" + newAdmin);
+      res.send("admin added \n" + newAdmin);
     } else {
       res.send("error during insertion: " + err);
     }
   });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+router.get("/buildingDetailsUnmapped", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
+  if(bName != -1){
+    let pair = [];
+    Buildingsite.find({ buildingName: bName }, (err, docs) => {
+    if (!err) {
+      var sites1 = [];
+      var buildingId = [];
+      var newOffices = [];
+
+      for (var i = 0; i < docs[0].buildingSites.length; i++) {
+        sites1 = sites1.concat(docs[0].buildingSites[i].Site[0].siteName);
+      }
+      console.log(sites1);
+
+      Bids.find({ buildingName: bName }).then(bds => {
+        for (var u = 0; u < bds.length; u++) {
+          buildingId[u] = [bds[u].buildingName,bds[u].buildingId];
+        }
+        console.log(buildingId);
+        return 1;
+      }).then(resolved =>{
+
+            Offices.find({ buildingName: bName }).then(offices => {
+              for (var x = 0; x < offices.length; x++) {
+                newOffices.push(offices[x].officeName);
+              }
+              console.log(newOffices);
+              return 1;
+            }).then(resolved =>{
+              let obj3arr = {
+                Sites :  sites1 ,
+                BuildingIdPairs : buildingId,
+                OfficeNames : newOffices
+              }
+              res.send(obj3arr);
+            });
+      });
+
+    } else {
+      res.send(err);
+      console.log(err);
+    }
+  });
+}
+});
+
+
+
+
+
+
+
+
+
 
 
 
@@ -172,7 +240,7 @@ router.post("/addBuilding", (req, res) => {
       }
     });
 
-    res.send("buildingid : " +base_64(req.body.buildingName,req.body.locationType) + " \n " + resultHolder);
+    res.send("buildingid : " +base_64(lowBuildingName,req.body.locationType) + " \n " + resultHolder);
     console.log(resultHolder);
   } else {
     res.send("Error during insertion");
@@ -791,8 +859,28 @@ router.get("/buildingDetails", (req, res) => {
           console.log("\n")
        }
 
-        console.log(pair);
-        res.json(docs);
+
+       let sites1 = [];
+       for(var tar = 0 ; tar < docs[0].buildingSites.length ; tar++){
+        sites1 = sites1.concat(docs[0].buildingSites[tar].Site[0].siteName);
+       }
+       let bidspair = [];
+       for(var tar = 0 ; tar < docs[0].buildingSites.length ; tar++){
+        bidspair = bidspair.concat(docs[0].buildingSites[tar].Site[1].buildingId);
+       }
+
+       let olist = [];
+       for(var tar = 0 ; tar < docs[0].buildingSites.length ; tar++){
+        olist = olist.concat(docs[0].buildingSites[tar].Site[2].OfficeNames);
+       }
+
+       let obj3arr = {
+         Sites : sites1,
+         BuildingIdPair : bidspair,
+         Offices : olist
+       }
+         res.json(obj3arr);
+  //      res.json(docs);
 
       });
 
@@ -1235,11 +1323,11 @@ if(str != ""){
   if(str.includes(":office") || str.includes(":residential")){
       return str.split(":")[0];
    }else{
-       res.send("buildingid header is not valid");
+       res.status(400).send("buildingid header is not valid");
        return -1;
    }
 }else{
-    res.send("buildingid is missing");
+    res.status(400).send("buildingid is missing");
     return -1;
     }
 }
