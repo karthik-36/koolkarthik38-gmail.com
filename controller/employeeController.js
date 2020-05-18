@@ -401,7 +401,8 @@ router.post("/userEmail", (req, res) => {
                  from: 'WB_Karthik@gmail.com',
                  to: mail,
                  subject: 'Your building access request has been approved',
-                 text: 'You now have access to services in kosmoone.'
+                 text: 'You now have access to services in kosmoone.',
+                 html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;">You now have access to services at Kosmo One.</p></div>'
                };
 
             transporter.sendMail(mailOptions, function(error, info){
