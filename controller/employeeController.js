@@ -8,6 +8,7 @@ let Buildingsite = mongoose.model("buildings");
 const Offices = mongoose.model("office");
 const Bids = mongoose.model("bids");
 const util = require('util')
+var nodemailer = require('nodemailer');
 
 
 
@@ -83,6 +84,10 @@ router.post("/addAdmin", (req, res) => {
 
 
 
+
+
+
+
 router.get("/buildingDetailsUnmapped", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
@@ -98,10 +103,10 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
         sites1 = sites1.concat(docs[0].buildingSites[i].Site[0].siteName);
       }
       console.log(sites1);
-
       Bids.find({ buildingName: bName }).then(bds => {
         for (var u = 0; u < bds.length; u++) {
-          buildingId[u] = [bds[u].buildingName,bds[u].buildingId];
+          buildingId[u] = [bds[u].idName,bds[u].buildingId];
+
         }
         console.log(buildingId);
         return 1;
@@ -115,6 +120,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
               return 1;
             }).then(resolved =>{
               let obj3arr = {
+                locationType:docs[0].locationType,
                 Sites :  sites1 ,
                 BuildingIdPairs : buildingId,
                 OfficeNames : newOffices
@@ -152,6 +158,7 @@ router.post("/addBuilding", (req, res) => {
   const base64data = buff.toString("base64");
 
   let arrSites = [];
+
   for (i = 0; i < req.body.Sites.length; i++) {
     let bsite = {
       Site: [
@@ -193,6 +200,7 @@ router.post("/addBuilding", (req, res) => {
     docs
   ) {
     if (err) {
+      console.log("officeerror");
       console.error(err);
       //    res.send(err);
     } else {
@@ -368,6 +376,53 @@ router.post("/AddSiteByName", (req, res) => {
   })
 }
 });
+
+
+
+
+
+
+
+
+router.post("/userEmail", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
+  if(bName != -1){
+    let mail = req.body.email;
+    var transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'whatsapp2backend@gmail.com',
+        pass: 'musicSHIRT36'
+      }
+    });
+
+       var mailOptions = {
+                 from: 'WB_Karthik@gmail.com',
+                 to: mail,
+                 subject: 'Your building access request has been approved',
+                 text: 'You now have access to services in kosmoone.'
+               };
+
+            transporter.sendMail(mailOptions, function(error, info){
+              if (error) {
+                console.log(error);
+              } else {
+                console.log('Email sent: ' + info.response);
+              }
+            });
+
+
+    res.send("email recieved");
+  }
+});
+
+
+
+
+
+
+
 
 
 
