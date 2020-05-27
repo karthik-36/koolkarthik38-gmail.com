@@ -13,6 +13,7 @@ var nodemailer = require('nodemailer');
 
 
 
+
 // Custom Search Refer to customSearch Function
 router.post("/customSearch", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
@@ -34,7 +35,7 @@ router.post("/customSearch", (req, res) => {
 // global Search
 router.post("/search", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  Buildingsite.find( { $text: { $search: "office" } }).exec(function(err, docs){
+  Buildingsite.find( { $text: { $search: "dawbuf" } }).exec(function(err, docs){
   if (err) {
     console.log(err)
     res.send("building not found");
@@ -147,6 +148,147 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
 
 
 
+// Add New Building + ( offices and buildingId ==> localName pairs)
+router.post("/addBuildingBids", (req, res) => {
+  let resultHolder = '';
+  const toLow = req.body.buildingName.replace(/ +/g, "");;
+  const lowBuildingName = toLow.toLowerCase();
+  const buff = new Buffer(lowBuildingName);
+  const base64data = buff.toString("base64");
+  let arrSites = [];
+
+  Bids.find({ buildingId : req.body.buildingId  }).then(docs => {
+    if(docs.length > 0){
+      return false;
+    }else{
+       return true;
+    }
+
+  }).then(uniqueBuildingIds =>{
+    if(uniqueBuildingIds){
+
+    console.log("all sites are unique");
+    for (i = 0; i < req.body.Sites.length; i++) {
+      let bsite = {
+        Site: [
+          {
+            siteName: req.body.Sites[i]
+          },
+          {
+            buildingId: []
+          },
+          {
+            OfficeNames: []
+          }
+        ]
+      };
+      arrSites.push(bsite);
+    }
+
+    var newBuilding = new Buildingsite();
+    newBuilding.buildingName = lowBuildingName;
+    newBuilding.locationType = req.body.locationType;
+    newBuilding.buildingSites = arrSites;
+
+    if(req.body.locationType != "residential"){
+    var newOffices = new Offices();
+    let officeArray = [];
+    for (var i = 0; i < req.body.offices.length; i++) {
+      var temp = {
+        officeName: req.body.offices[i],
+        buildingName: lowBuildingName
+      };
+      officeArray.push(temp);
+    }
+
+    console.log("office");
+    console.log(officeArray);
+
+    Offices.collection.insert(officeArray, { ordered: false }, function (
+      err,
+      docs
+    ) {
+      if (err) {
+        console.log("officeerror");
+        console.error(err);
+        //    res.send(err);
+      } else {
+        console.log("Multiple documents inserted to Collection");
+        resultHolder = resultHolder + " Office Collection Added ,  "
+      }
+    });
+
+    }
+
+    var newBids = new Bids();
+    let bidsArray = [];
+    for (var i = 0; i < req.body.buildingId.length; i++) {
+      var temp = {
+        buildingName: lowBuildingName,
+        buildingId: req.body.buildingId[i],
+        idName: req.body.idName[i]
+      };
+      bidsArray.push(temp);
+    }
+
+
+    if (
+      lowBuildingName &&
+      req.body.locationType &&
+      req.body.Sites.length &&
+      req.body.buildingId.length == req.body.idName.length
+    ) {
+      newBuilding.save((err, doc) => {
+        if (!err) {
+          resultHolder = resultHolder + " New Building Added ,  ";
+        } else {
+          console.log("error during record insertion : " + err);
+        }
+      });
+
+
+      Bids.collection.insert(bidsArray, { ordered: false }, function (err, docs) {
+        if (err) {
+          console.error(err);
+        } else {
+          console.log("Multiple documents inserted to Collection");
+            resultHolder = resultHolder + "  Building id sets added ,  ";
+        }
+      });
+
+      res.send("buildingid : " +base_64(lowBuildingName,req.body.locationType) + " \n " + resultHolder);
+      console.log(resultHolder);
+    } else {
+      res.send("Error during insertion");
+    }
+  }else {
+    res.status(400);
+    res.send("one or more buildingId overlaps")
+  }
+  });
+
+///////////////////
+
+
+
+
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // Add New Building + ( offices and buildingId ==> localName pairs)
@@ -156,8 +298,8 @@ router.post("/addBuilding", (req, res) => {
   const lowBuildingName = toLow.toLowerCase();
   const buff = new Buffer(lowBuildingName);
   const base64data = buff.toString("base64");
-
   let arrSites = [];
+
 
   for (i = 0; i < req.body.Sites.length; i++) {
     let bsite = {
@@ -388,7 +530,7 @@ router.post("/userEmail", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ?  to_ascii(res,req.headers.buildingid) : to_ascii(res,"");
   if(bName != -1){
-    let mail = req.body.email;
+    let mail = req.body.officeEmail;
     var transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -402,7 +544,7 @@ router.post("/userEmail", (req, res) => {
                  to: mail,
                  subject: 'Your building access request has been approved',
                  text: 'You now have access to services in kosmoone.',
-                 html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;">You now have access to services at Kosmo One.</p></div>'
+                 html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hello '+ req.body.fullName +', you now have access to services at '+bName.toUpperCase()+'.</p></div>'
                };
 
             transporter.sendMail(mailOptions, function(error, info){
@@ -1234,6 +1376,29 @@ router.post("/checkPhone", (req, res) => {
 
 
 
+router.post("/validatePhone", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  console.log(req.body.number);
+  console.log("number up");
+  let str = req.body.number.toString();
+  console.log(str);
+  Employee.find({ phone : str }, function (err, docs) {
+    if (!err) {
+      console.log(docs);
+      if(docs.length != 0){
+      req.body = docs[0];
+      updateRecordByPhone(req,res);
+    }else{
+      res.send("number was not found");
+    }
+  }else {
+      res.send(err);
+      console.log(err);
+    }
+  });
+});
+
+
 
 
 // Insert New Office
@@ -1277,7 +1442,11 @@ function insertRecord(req, res) {
   employee.save((err, doc) => {
     if (!err) {
       console.log("New employee created");
-      res.send("employee created \n" + employee);
+      if(req.body.office != null){
+      res.send("employee created ");
+    }else{
+        res.send("employee not created ");
+      }
     } else {
       console.log("error during record insertion : " + err);
       res.send("error during record insertion : " + err);
@@ -1299,6 +1468,40 @@ function updateRecord(req, res) {
       (err, doc) => {
         if (!err) {
           res.send("record updated with  \n" + JSON.stringify(req.body));
+        } else {
+          if (err.name == "ValidationError") {
+            console.log("volidation error");
+            res.send("validation error " + err);
+          } else {
+            console.log("Error during record update : " + err);
+            res.send("Error during record update : " + err);
+          }
+        }
+      }
+    );
+  } else {
+    res.send("invalid email");
+    console.log("invalid email");
+  }
+}
+
+
+
+
+function updateRecordByPhone(req, res) {
+  req.body.apporval = true;
+  if (validateEmail(req.body.officeEmail)) {
+    Employee.findOneAndUpdate(
+      { _id: req.body._id },
+      req.body,
+      { new: true },
+      (err, doc) => {
+        if (!err) {
+          let message = {
+            message : "Phone was validated",
+            buildingId : req.body.buildingId
+          }
+          res.json(message);
         } else {
           if (err.name == "ValidationError") {
             console.log("volidation error");

@@ -6,8 +6,7 @@ var employeeSchema = new mongoose.Schema({
     required : " full name is required"
   },
   office : {
-    type : String,
-    required : " Office is required"
+    type : String
   },
   buildingId : {
     type : [String],
@@ -54,7 +53,7 @@ var employeeSchema = new mongoose.Schema({
     required : "buildingName status is required"
   },
   createdAt : {
-    type : Date 
+    type : Date
   }
 
 });

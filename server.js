@@ -10,6 +10,9 @@ require('./models/bids.model');
 const employeeController = require('./controller/employeeController');
 const buildingController = require('./controller/buildingController');
 var app = express();
+var cors = require('cors')
+app.use(cors())
+
 app.use(bodyparser.urlencoded({
   extended : true
 }));
