@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 mongoose.set("useFindAndModify", false);
 const Employee = mongoose.model("employees");
 const Admin = mongoose.model("admin");
+const SuperAdmin = mongoose.model("superadmin");
 let Buildingsite = mongoose.model("buildings");
 const Offices = mongoose.model("office");
 const Bids = mongoose.model("bids");
@@ -11,6 +12,55 @@ const util = require('util')
 var nodemailer = require('nodemailer');
 
 
+
+
+router.post("/getBuildingElement", (req, res) => {
+
+Buildingsite.find({ buildingName : req.body.buildingName }).then(bdocs => {
+  console.log(bdocs);
+  let jarr = [];
+  jarr.push(bdocs[0]);
+  //res.json(jarr);
+  //////////// remove below
+  Admin.find({ locationName : req.body.buildingName }).then(docs => {
+  jarr.push(docs);
+  res.json(jarr);
+  });
+
+
+});
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+// partial/full name search
+router.post("/searchBuilding", (req, res) => {
+
+Buildingsite.find({  }).select('buildingName').then(bdocs => {
+  console.log(bdocs);
+  let jarr = [];
+  let st = req.body.searchTerm;
+  for(var i = 0 ; i < bdocs.length; i++){
+    if(bdocs[i].buildingName.includes(st)){
+      jarr.push(bdocs[i].buildingName);
+    }
+  }
+
+  res.json(jarr);
+
+});
+
+});
 
 
 
@@ -32,14 +82,20 @@ router.post("/customSearch", (req, res) => {
 
 
 
+
+
 // global Search
 router.post("/search", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  Buildingsite.find( { $text: { $search: "dawbuf" } }).exec(function(err, docs){
+// $text: { $search: "kosmoone" }
+  //Buildingsite.index({ buildingName : "text" , buildingSites : "text"});
+  Buildingsite.find({  $text: { $search: "kosmoone" } }).exec(function(err, docs){
   if (err) {
+    console.log("hi");
     console.log(err)
-    res.send("building not found");
+    res.send("building not foun1");
     } else {
+        console.log("hello");
       console.log(docs.toString())
       res.send(docs);
     }
@@ -73,6 +129,40 @@ router.post("/addAdmin", (req, res) => {
     }
   });
 });
+
+
+
+
+
+
+router.post("/addSuperAdmin", (req, res) => {
+  var newAdmin = new SuperAdmin();
+  if(validateEmail(req.body.username) && req.body.password.length > 0){
+  newAdmin.username = req.body.username;
+  newAdmin.password = req.body.password;
+
+  newAdmin.save((err, doc) => {
+    if (!err) {
+      res.send("super admin added \n" + newAdmin);
+    } else {
+      res.status(400);
+      res.send("error during insertion: " + err);
+    }
+  });
+}else{
+  res.status(400);
+  res.send("error during insertion: email not valid");
+
+}
+
+
+});
+
+
+
+
+
+
 
 
 
@@ -149,23 +239,40 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
 
 
 // Add New Building + ( offices and buildingId ==> localName pairs)
-router.post("/addBuildingBids", (req, res) => {
+router.post("/addBuilding", (req, res) => {
   let resultHolder = '';
   const toLow = req.body.buildingName.replace(/ +/g, "");;
   const lowBuildingName = toLow.toLowerCase();
   const buff = new Buffer(lowBuildingName);
   const base64data = buff.toString("base64");
   let arrSites = [];
+  let reason = "";
+
+
+
+
+Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
+  if(bdocs.length > 0){
+    reason = reason +"Building Name : " + bdocs[0].buildingName + " already exists ";
+  }
 
   Bids.find({ buildingId : req.body.buildingId  }).then(docs => {
     if(docs.length > 0){
-      return false;
+      if(reason.length > 0){reason = reason + ", "}
+      reason = reason + "  matching buildingId already exists : ";
+      for(var i = 0 ; i < docs.length  ; i++){
+        if(i == 0){
+            reason = reason + " " +docs[i].buildingId;
+        }else {
+            reason = reason + ", " +docs[i].buildingId;
+        }
+      }
+      return reason;
     }else{
-       return true;
+       return "";
     }
-
   }).then(uniqueBuildingIds =>{
-    if(uniqueBuildingIds){
+    if(uniqueBuildingIds.length == 0){
 
     console.log("all sites are unique");
     for (i = 0; i < req.body.Sites.length; i++) {
@@ -189,6 +296,7 @@ router.post("/addBuildingBids", (req, res) => {
     newBuilding.buildingName = lowBuildingName;
     newBuilding.locationType = req.body.locationType;
     newBuilding.buildingSites = arrSites;
+    newBuilding.countryCode = req.body.countryCode;
 
     if(req.body.locationType != "residential"){
     var newOffices = new Offices();
@@ -259,14 +367,17 @@ router.post("/addBuildingBids", (req, res) => {
       res.send("buildingid : " +base_64(lowBuildingName,req.body.locationType) + " \n " + resultHolder);
       console.log(resultHolder);
     } else {
-      res.send("Error during insertion");
+      res.status(400);
+      res.send("Error during insertion : " + " essential field/s missing check location type, building name, country code etc and try again");
     }
   }else {
     res.status(400);
-    res.send("one or more buildingId overlaps")
+    res.send("error : " + reason);
   }
   });
 
+
+});
 ///////////////////
 
 
@@ -292,7 +403,7 @@ router.post("/addBuildingBids", (req, res) => {
 
 
 // Add New Building + ( offices and buildingId ==> localName pairs)
-router.post("/addBuilding", (req, res) => {
+router.post("/addBuildingOld", (req, res) => {
   let resultHolder = '';
   const toLow = req.body.buildingName.replace(/ +/g, "");;
   const lowBuildingName = toLow.toLowerCase();
@@ -1354,6 +1465,32 @@ router.post("/check", (req, res) => {
     }
   );
 });
+
+
+
+//check if admin username and password is correct
+router.post("/checkSuper", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  SuperAdmin.find(
+    { username: req.body.username, password: req.body.password },
+    (err, docs) => {
+      if (err) {
+      } else if (docs[0] == undefined) {
+        res.status(400);
+        res.json({ message : "user not valid" , valid : false});
+      } else {
+        console.log(docs[0]);
+        var valid = {
+          message : "user is valid",
+          valid : true
+        };
+
+        res.json(valid);
+      }
+    }
+  );
+});
+
 
 
 

@@ -7,6 +7,7 @@ require('./models/admin.model');
 require('./models/building.model');
 require('./models/office.model');
 require('./models/bids.model');
+require('./models/superadmin.model');
 const employeeController = require('./controller/employeeController');
 const buildingController = require('./controller/buildingController');
 var app = express();

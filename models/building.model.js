@@ -10,6 +10,10 @@ var buildingSchema = new mongoose.Schema({
     type : String,
     required : "Location Type is required"
   },
+  countryCode : {
+    type : String,
+    required : "country code is required"
+  },
   buildingSites : {
     type : [] ,
     required : " sites required"
