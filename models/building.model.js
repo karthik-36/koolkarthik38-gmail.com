@@ -8,6 +8,8 @@ var buildingSchema = new mongoose.Schema({
   },
   locationType : {
     type : String,
+    enum: ['office', 'residential'],
+    default: 'office',
     required : "Location Type is required"
   },
   countryCode : {

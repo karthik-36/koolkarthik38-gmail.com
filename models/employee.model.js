@@ -48,6 +48,10 @@ var employeeSchema = new mongoose.Schema({
     default : true,
     required : " permanent/temporary status is required"
   },
+  sessionId : {
+    type : String,
+    required : " SessionId is required"
+  },
   buildingName : {
     type : String,
     required : "buildingName status is required"

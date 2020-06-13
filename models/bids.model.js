@@ -13,6 +13,12 @@ var bidsSchema = new mongoose.Schema({
   idName : {
     type : String,
     required : " building name is required",
+  },
+  buildingType : {
+    type : String,
+    enum: ['LCE', 'GG'],
+    default: 'LCE',
+    required : " building type is required ",
   }
 });
 

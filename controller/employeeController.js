@@ -17,19 +17,50 @@ var nodemailer = require('nodemailer');
 router.post("/getBuildingElement", (req, res) => {
 
 Buildingsite.find({ buildingName : req.body.buildingName }).then(bdocs => {
-  console.log(bdocs);
-  let jarr = [];
-  jarr.push(bdocs[0]);
-  //res.json(jarr);
-  //////////// remove below
-  Admin.find({ locationName : req.body.buildingName }).then(docs => {
-  jarr.push(docs);
-  res.json(jarr);
+
+  let mappedSites = bdocs[0].buildingSites;
+  let buildingSite = [];
+  for(var i = 0 ; i < bdocs[0].buildingSites.length ; i++){
+    buildingSite.push(bdocs[0].buildingSites[i].Site[0].siteName);
+  }
+
+  let listDetails = {
+    _id : bdocs[0]._id,
+      locationType : bdocs[0].locationType,
+      buildingName : bdocs[0].buildingName,
+      countryCode : bdocs[0].countryCode,
+      buildingSites : buildingSite
+  };
+
+  Offices.find({ buildingName: req.body.buildingName }).then(offices => {
+    let newOffices = [];
+    for (var x = 0; x < offices.length; x++) {
+      newOffices.push(offices[x].officeName);
+    }
+    return newOffices;
+
+  }).then((x) => {
+    listDetails.officeNames = x;
+    let pair = [];
+    Bids.find({ buildingName: req.body.buildingName }).then(BidPair => {
+      for(var i = 0 ; i < BidPair.length ; i++){
+      pair.push([BidPair[i].idName ,BidPair[i].buildingId , BidPair[i].buildingType]);
+      }
+      return pair;
+    }).then((pair) => {
+      listDetails.bIdPairs = pair;
+      let jarr = [];
+      jarr.push(listDetails);
+      Admin.find({ locationName : req.body.buildingName }).then(docs => {
+      jarr.push(mappedSites);
+      jarr.push(docs);
+      res.json(jarr);
+        });
+      });
+
+
+    });
   });
-
-
-});
-
 });
 
 
@@ -47,7 +78,6 @@ Buildingsite.find({ buildingName : req.body.buildingName }).then(bdocs => {
 router.post("/searchBuilding", (req, res) => {
 
 Buildingsite.find({  }).select('buildingName').then(bdocs => {
-  console.log(bdocs);
   let jarr = [];
   let st = req.body.searchTerm;
   for(var i = 0 ; i < bdocs.length; i++){
@@ -58,7 +88,7 @@ Buildingsite.find({  }).select('buildingName').then(bdocs => {
 
   res.json(jarr);
 
-});
+  });
 
 });
 
@@ -121,13 +151,31 @@ router.post("/addAdmin", (req, res) => {
   newAdmin.locationId = base64data;
   newAdmin.serviceList = req.body.serviceList;
 
-  newAdmin.save((err, doc) => {
-    if (!err) {
-      res.send("admin added \n" + newAdmin);
-    } else {
-      res.send("error during insertion: " + err);
-    }
-  });
+  if(req.body._id == undefined){
+
+     console.log("no id");
+     newAdmin.save((err, doc) => {
+       if (!err) {
+         res.send("admin added \n" + newAdmin);
+       } else {
+         res.send("error during insertion: " + err);
+       }
+     });
+
+  }else{
+    console.log("yes id");
+    newAdmin._id = req.body._id;
+    Admin.findOneAndUpdate({ _id: req.body._id },newAdmin,{ new: true },(err, doc) => {
+        if (!err) {
+          res.send("record updated with  \n" + JSON.stringify(req.body));
+        } else {
+            console.log("Error during record update : " + err);
+            res.send("Error during record update : " + err);
+        }
+      }
+    );
+
+  }
 });
 
 
@@ -240,6 +288,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
 
 // Add New Building + ( offices and buildingId ==> localName pairs)
 router.post("/addBuilding", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
   let resultHolder = '';
   const toLow = req.body.buildingName.replace(/ +/g, "");;
   const lowBuildingName = toLow.toLowerCase();
@@ -334,7 +383,8 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
       var temp = {
         buildingName: lowBuildingName,
         buildingId: req.body.buildingId[i],
-        idName: req.body.idName[i]
+        idName: req.body.idName[i],
+        buildingType : req.body.buildingType[i]
       };
       bidsArray.push(temp);
     }
@@ -344,6 +394,7 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
       lowBuildingName &&
       req.body.locationType &&
       req.body.Sites.length &&
+      req.body.buildingType.length == req.body.buildingId.length &&
       req.body.buildingId.length == req.body.idName.length
     ) {
       newBuilding.save((err, doc) => {
@@ -359,7 +410,7 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
         if (err) {
           console.error(err);
         } else {
-          console.log("Multiple documents inserted to Collection");
+          console.log("Bids : Multiple documents inserted to Collection");
             resultHolder = resultHolder + "  Building id sets added ,  ";
         }
       });
@@ -368,7 +419,7 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
       console.log(resultHolder);
     } else {
       res.status(400);
-      res.send("Error during insertion : " + " essential field/s missing check location type, building name, country code etc and try again");
+      res.send("Error during insertion : " + " essential field/s missing check location type, building name, country code etc ; ensure that buildingID.length == idName.length == buildingType.length and try again");
     }
   }else {
     res.status(400);
@@ -402,7 +453,7 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
 
 
 
-// Add New Building + ( offices and buildingId ==> localName pairs)
+// Add New Building + ( offices and buildingId ==> localName pairs)  // deprecated
 router.post("/addBuildingOld", (req, res) => {
   let resultHolder = '';
   const toLow = req.body.buildingName.replace(/ +/g, "");;
@@ -1418,6 +1469,7 @@ router.post("/createBulk", (req, res) => {
   let employeeArray = req.body.arr;
   for(var i = 0 ; i < employeeArray.length ; i++){
     employeeArray[i].buildingName = bName;
+    employeeArray[i].sessionId = employeeArray[i].buildingId[0];
     employeeArray[i].createdAt = new Date();
   }
   console.log("employee Array inserted");
@@ -1524,7 +1576,7 @@ router.post("/validatePhone", (req, res) => {
       console.log(docs);
       if(docs.length != 0){
       req.body = docs[0];
-      updateRecordByPhone(req,res);
+      ordByPhone(req,res);
     }else{
       res.send("number was not found");
     }
@@ -1573,6 +1625,7 @@ function insertRecord(req, res) {
   employee.terms = req.body.terms;
   employee.allowMessaging = req.body.allowMessaging;
   employee.permanent = req.body.permanent;
+  employee.sessionId = req.body.buildingId[0];
   employee.buildingName = req.body.buildingName;
   employee.createdAt =  new Date();
   // add expiry date  new Date(); + 24 hrs
