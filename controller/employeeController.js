@@ -290,10 +290,9 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
 router.post("/addBuilding", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let resultHolder = '';
-  const toLow = req.body.buildingName.replace(/ +/g, "");;
+  const toLow = req.body.buildingName.replace(/ +/g, "");
   const lowBuildingName = toLow.toLowerCase();
-  const buff = new Buffer(lowBuildingName);
-  const base64data = buff.toString("base64");
+
   let arrSites = [];
   let reason = "";
 
@@ -357,9 +356,6 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
       };
       officeArray.push(temp);
     }
-
-    console.log("office");
-    console.log(officeArray);
 
     Offices.collection.insert(officeArray, { ordered: false }, function (
       err,
@@ -428,14 +424,230 @@ Buildingsite.find({ buildingName : lowBuildingName  }).then(bdocs => {
   });
 
 
-});
+ });
 ///////////////////
+});
 
 
 
+
+
+
+
+
+
+
+
+
+// Add New Building + ( offices and buildingId ==> localName pairs)
+router.post("/updateBuilding", (req, res) => {
+res.set("Access-Control-Allow-Headers", "*");
+
+
+let reason = "";
+
+
+Buildingsite.findOne({ buildingName : req.body.buildingName  }).then(bdocs => {
+
+ if(bdocs.buildingSites.length > 0){
+   return bdocs.buildingSites;
+ }else{
+   return [];
+ }
+}).then((arrSites) => {
+
+
+//  let arrSites = arrSites;
+  Bids.find({ buildingId : req.body.buildingId  }).then(docs => {
+    if(docs.length > 0){
+      if(reason.length > 0){reason = reason + ", "}
+      reason = reason + "  matching buildingId already exists : ";
+      for(var i = 0 ; i < docs.length  ; i++){
+        if(i == 0){
+            reason = reason + " " +docs[i].buildingId;
+          }else {
+            reason = reason + ", " +docs[i].buildingId;
+          }
+        }
+        return reason;
+      }else{
+        return "";
+      }
+    }).then(uniqueBuildingIds =>{
+  ///// unique building id
+    if(uniqueBuildingIds == ""){
+
+    //  let arrSites = [];
+      for (i = 0; i < req.body.Sites.length ; i++) {
+        let siteInstance = {
+          Site: [
+            {
+              siteName: req.body.Sites[i]
+            },
+            {
+              buildingId: []
+            },
+            {
+              OfficeNames: []
+            }
+          ]
+        };
+
+        let overlap = false;
+          console.log(arrSites);
+        for(var s = 0 ; s < arrSites.length ; s++){
+          console.log( siteInstance.Site[0].siteName + "    " +  arrSites[s].Site[0].siteName);
+            if(siteInstance.Site[0].siteName == arrSites[s].Site[0].siteName){
+              overlap = true;
+              break;
+            }
+        }
+        if(!overlap){
+          arrSites.push(siteInstance);
+        }
+    }
+
+
+
+
+     let newBuilding = new Buildingsite();
+     const toLow = req.body.buildingName.replace(/ +/g, "");
+     const lowBuildingName = toLow.toLowerCase();
+     newBuilding.buildingName = lowBuildingName;
+     newBuilding.locationType = req.body.locationType;
+     newBuilding.buildingSites = arrSites;
+     newBuilding.countryCode = req.body.countryCode;
+
+
+
+     var newBids = new Bids();
+     let bidsArray = [];
+     for (var i = 0; i < req.body.buildingId.length; i++) {
+       var temp = {
+         buildingName: lowBuildingName,
+         buildingId: req.body.buildingId[i],
+         idName: req.body.idName[i],
+         buildingType : req.body.buildingType[i]
+       };
+       bidsArray.push(temp);
+     }
+
+
+
+      if(req.body._id != undefined){
+
+
+
+        if (lowBuildingName &&
+          req.body.locationType &&
+          req.body.Sites.length &&
+          req.body.buildingType.length == req.body.buildingId.length &&
+          req.body.buildingId.length == req.body.idName.length) {
+
+            newBuilding._id = req.body._id;
+            Buildingsite.findOneAndUpdate({ _id: req.body._id },newBuilding,{ new: true },(err, doc) => {
+              if(!err){
+                res.send(newBuilding);
+              }else{
+                res.send(err);
+              }
+            });
+
+
+
+
+            Bids.collection.insert(bidsArray, { ordered: false }, function (err, docs) {
+              if (err) {
+                console.error(err);
+              } else {
+                console.log("Bids : Multiple documents inserted to Collection");
+                  resultHolder = resultHolder + "  Building id sets added ,  ";
+              }
+            });
+
+
+
+
+
+            if(req.body.locationType != "residential"){
+            var newOffices = new Offices();
+            let officeArray = [];
+            for (var i = 0; i < req.body.offices.length; i++) {
+              var temp = {
+                officeName: req.body.offices[i],
+                buildingName: lowBuildingName
+              };
+              officeArray.push(temp);
+            }
+
+
+            Offices.collection.insert(officeArray, { ordered: false }, function ( err,docs ) {
+              if (err) {
+                console.log("officeerror");
+                console.error(err);
+              } else {
+                console.log("Multiple documents inserted to Collection");
+                resultHolder = resultHolder + " Office Collection Added ,  "
+              }
+            });
+
+           }
+
+
+
+
+
+
+
+
+
+          }
+
+
+
+      }else{
+        res.send(" you must include _id in order to update");
+      }
+
+
+
+     }
+     else{
+        res.send(reason);
+     }
+
+    });
 
 
 });
+//here
+
+
+
+
+      ///// unique building id end
+
+    //Buildingsite.findOneAndUpdate({ _id: req.body._id },newAdmin,{ new: true },(err, doc) => {
+    //});
+    //Buildingsite.find({ buildingName :   }).then(bdocs => {
+  //    res.send("here");
+//    });
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
