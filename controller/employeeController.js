@@ -18,7 +18,7 @@ router.post("/getBuildingElement", (req, res) => {
 
   Buildingsite.find({
     buildingName: req.body.buildingName
-  }).then(bdocs => {
+  }).limit(1).then(bdocs => {
 
     let mappedSites = bdocs[0].buildingSites;
     let buildingSite = [];
@@ -133,8 +133,6 @@ router.post("/customSearch", (req, res) => {
 // global Search
 router.post("/search", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  // $text: { $search: "kosmoone" }
-  //Buildingsite.index({ buildingName : "text" , buildingSites : "text"});
   Buildingsite.find({
     $text: {
       $search: req.body.searchTerm
@@ -244,7 +242,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     let pair = [];
-    Buildingsite.find({
+    Buildingsite.findOne({
       buildingName: bName
     }, (err, docs) => {
       if (!err) {
@@ -252,8 +250,8 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
         var buildingId = [];
         var newOffices = [];
 
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          sites1 = sites1.concat(docs[0].buildingSites[i].Site[0].siteName);
+        for (var i = 0; i < docs.buildingSites.length; i++) {
+          sites1 = sites1.concat(docs.buildingSites[i].Site[0].siteName);
         }
         console.log(sites1);
         Bids.find({
@@ -277,7 +275,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
             return 1;
           }).then(resolved => {
             let obj3arr = {
-              locationType: docs[0].locationType,
+              locationType: docs.locationType,
               Sites: sites1,
               BuildingIdPairs: buildingId,
               OfficeNames: newOffices
@@ -318,7 +316,7 @@ router.post("/addBuilding", (req, res) => {
 
   Buildingsite.find({
     buildingName: lowBuildingName
-  }).then(bdocs => {
+  }).limit(1).then(bdocs => {
     if (bdocs.length > 0) {
       reason = reason + "Building Name : " + bdocs[0].buildingName + " already exists ";
     }
@@ -694,123 +692,118 @@ router.post("/AddSiteByName", (req, res) => {
 
       req.body.Site[1].buildingId = buildingIdList;
       Buildingsite.find({
-        buildingName: bName
-      }, (err, docs) => {
-        if (!err) {
-          if (docs.length == 0) {
-            res.status(400);
-            res.send("building not found");
-          } else {
-
-
-            var siteExists = false;
-            siteArr = [];
-            for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
-            }
-
-            if (siteArr.includes(req.body.Site[0].siteName)) {
-              siteExists = true;
-            }
-
-            if (siteExists) {
-
-              var newBuildingID = new Set();
-              var newOfficeName = new Set();
-              var index;
-
-
-              newBuildingID = req.body.Site[1].buildingId;
-              newOfficeName = req.body.Site[2].OfficeNames;
-
-              var earr;
-
-              for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                if (docs[0].buildingSites[i].Site[0].siteName == req.body.Site[0].siteName) {
-                  index = i;
-                  earr = docs[0].buildingSites[i];
-                  break;
-                }
-              }
-
-
-              let buildingIdOriginal = [];
-              for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                if (docs[0].buildingSites[i].Site[0].siteName != req.body.Site[0].siteName) {
-                  buildingIdOriginal = buildingIdOriginal.concat(docs[0].buildingSites[i].Site[1].buildingId);
-                }
-              }
-
-              let bidSet = new Set(buildingIdOriginal);
-              console.log("uneq");
-              console.log(buildingIdOriginal);
-              console.log(bidSet);
-
-              let overlap = false;
-              for (var i = 0; i < newBuildingID.length; i++) {
-                if (bidSet.has(newBuildingID[i])) {
-                  overlap = true;
-                  res.status(400);
-                  res.send(newBuildingID[i] + " is overlapping with another site.");
-                  break;
-                }
-              }
-
-              /*
-                            earr.Site[1].buildingId = earr.Site[1].buildingId.concat(
-                              newBuildingID
-                            );
-                            earr.Site[2].OfficeNames = earr.Site[2].OfficeNames.concat(
-                              newOfficeName
-                            );
-              */
-              //    earr.Site[1].buildingId = [...new Set(earr.Site[1].buildingId)];
-              //    earr.Site[2].OfficeNames = [...new Set(earr.Site[2].OfficeNames)];
-              if (!overlap) {
-                earr.Site[1].buildingId = newBuildingID;
-                earr.Site[2].OfficeNames = newOfficeName;
-                var arr = [];
-                arr = docs[0].buildingSites;
-                arr[index] = earr;
-                docs[0].buildingSites = arr;
-                newDoc = docs[0];
-                addSite(docs[0]._id, newDoc, res);
-              }
+          buildingName: bName
+        },
+        null, {
+          sort: {
+            'date': -1
+          },
+          limit: 1
+        }, (err, docs) => {
+          if (!err) {
+            if (docs.length == 0) {
+              res.status(400);
+              res.send("building not found");
             } else {
-              var bidArr = [];
-              var flag = true;
+
+
+              var siteExists = false;
+              siteArr = [];
               for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+                siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
               }
 
-              for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
-                if (bidArr.includes(req.body.Site[1].buildingId[i])) {
-                  flag = false;
-                  break;
+              if (siteArr.includes(req.body.Site[0].siteName)) {
+                siteExists = true;
+              }
+
+              if (siteExists) {
+
+                var newBuildingID = new Set();
+                var newOfficeName = new Set();
+                var index;
+
+
+                newBuildingID = req.body.Site[1].buildingId;
+                newOfficeName = req.body.Site[2].OfficeNames;
+
+                var earr;
+
+                for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                  if (docs[0].buildingSites[i].Site[0].siteName == req.body.Site[0].siteName) {
+                    index = i;
+                    earr = docs[0].buildingSites[i];
+                    break;
+                  }
+                }
+
+
+                let buildingIdOriginal = [];
+                for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                  if (docs[0].buildingSites[i].Site[0].siteName != req.body.Site[0].siteName) {
+                    buildingIdOriginal = buildingIdOriginal.concat(docs[0].buildingSites[i].Site[1].buildingId);
+                  }
+                }
+
+                let bidSet = new Set(buildingIdOriginal);
+                console.log(buildingIdOriginal);
+                console.log(bidSet);
+
+                let overlap = false;
+                for (var i = 0; i < newBuildingID.length; i++) {
+                  if (bidSet.has(newBuildingID[i])) {
+                    overlap = true;
+                    res.status(400);
+                    res.send(newBuildingID[i] + " is overlapping with another site.");
+                    break;
+                  }
+                }
+
+                if (!overlap) {
+                  earr.Site[1].buildingId = newBuildingID;
+                  earr.Site[2].OfficeNames = newOfficeName;
+                  var arr = [];
+                  arr = docs[0].buildingSites;
+                  arr[index] = earr;
+                  docs[0].buildingSites = arr;
+                  newDoc = docs[0];
+                  addSite(docs[0]._id, newDoc, res);
+                }
+              } else {
+                var bidArr = [];
+                var flag = true;
+                for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                  bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+                }
+
+                for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
+                  if (bidArr.includes(req.body.Site[1].buildingId[i])) {
+                    flag = false;
+                    break;
+                  }
+                }
+
+
+                if (flag) {
+                  var arr = [];
+                  arr = docs[0].buildingSites;
+                  arr.push(req.body);
+                  docs[0].buildingSites = arr;
+                  newDoc = docs[0];
+                  addSite(docs[0]._id, newDoc, res);
+                } else {
+                  res.status(400);
+                  res.send(
+                    "Building ID already exists in a different building or site, Enter unique ID or contact KONE "
+                  );
                 }
               }
-
-
-              if (flag) {
-                var arr = [];
-                arr = docs[0].buildingSites;
-                arr.push(req.body);
-                docs[0].buildingSites = arr;
-                newDoc = docs[0];
-                addSite(docs[0]._id, newDoc, res);
-              } else {
-                res.status(400);
-                res.send(
-                  "Building ID already exists in a different building or site, Enter unique ID or contact KONE "
-                );
-              }
             }
+          } else {
+            res.status(400);
+            res.send(err);
           }
-        } else {
-          res.status(400);
-          res.send(err);
-        }
-      });
+        });
 
     }).catch(err => {
       res.status(400);
@@ -913,7 +906,7 @@ router.post("/deleteSite", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     res.set("Access-Control-Allow-Headers", "*");
-    Buildingsite.find({
+    Buildingsite.findOne({
       buildingName: bName
     }, (err, docs) => {
       if (!err) {
@@ -922,19 +915,19 @@ router.post("/deleteSite", (req, res) => {
           res.send("building not found");
         } else {
           var index = -1;
-          for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            if (docs[0].buildingSites[i].Site[0].siteName == req.body.siteName) {
+          for (var i = 0; i < docs.buildingSites.length; i++) {
+            if (docs.buildingSites[i].Site[0].siteName == req.body.siteName) {
               index = i;
               break;
             }
           }
           if (index >= 0) {
             var arr = [];
-            arr = docs[0].buildingSites;
+            arr = docs.buildingSites;
             arr.splice(index, 1);
-            docs[0].buildingSites = arr;
-            newDoc = docs[0];
-            addSite(docs[0]._id, newDoc, res);
+            docs.buildingSites = arr;
+            newDoc = docs;
+            addSite(docs._id, newDoc, res);
           } else {
             res.status(400);
             res.send(" Site not found");
@@ -959,95 +952,101 @@ router.post("/addSite", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
-        if (docs.length == 0) {
-          res.status(400);
-          res.send("building not found");
-        } else {
-          var siteExists = false;
-          siteArr = [];
-          for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
-          }
-
-          if (siteArr.includes(req.body.Site[0].siteName)) {
-            siteExists = true;
-          }
-
-          if (siteExists) {
-
-            var newBuildingID = new Set();
-            var newOfficeName = new Set();
-            var index;
-            newBuildingID = req.body.Site[1].buildingId;
-            newOfficeName = req.body.Site[2].OfficeNames;
-
-            var earr;
-            for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              if (
-                docs[0].buildingSites[i].Site[0].siteName ==
-                req.body.Site[0].siteName
-              ) {
-                index = i;
-                earr = docs[0].buildingSites[i];
-                break;
-              }
-            }
-
-
-            earr.Site[1].buildingId = earr.Site[1].buildingId.concat(
-              newBuildingID
-            );
-            earr.Site[2].OfficeNames = earr.Site[2].OfficeNames.concat(
-              newOfficeName
-            );
-
-            earr.Site[1].buildingId = [...new Set(earr.Site[1].buildingId)];
-            earr.Site[2].OfficeNames = [...new Set(earr.Site[2].OfficeNames)];
-            //////// Replacement commeth
-            var arr = [];
-            arr = docs[0].buildingSites;
-            arr[index] = earr;
-            docs[0].buildingSites = arr;
-            newDoc = docs[0];
-            addSite(docs[0]._id, newDoc, res);
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
+          if (docs.length == 0) {
+            res.status(400);
+            res.send("building not found");
           } else {
-            var bidArr = [];
-            var flag = true;
+            var siteExists = false;
+            siteArr = [];
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+              siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
             }
 
+            if (siteArr.includes(req.body.Site[0].siteName)) {
+              siteExists = true;
+            }
 
-            for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
-              if (bidArr.includes(req.body.Site[1].buildingId[i])) {
-                flag = false;
-                break;
+            if (siteExists) {
+
+              var newBuildingID = new Set();
+              var newOfficeName = new Set();
+              var index;
+              newBuildingID = req.body.Site[1].buildingId;
+              newOfficeName = req.body.Site[2].OfficeNames;
+
+              var earr;
+              for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                if (
+                  docs[0].buildingSites[i].Site[0].siteName ==
+                  req.body.Site[0].siteName
+                ) {
+                  index = i;
+                  earr = docs[0].buildingSites[i];
+                  break;
+                }
               }
-            }
 
-            if (flag) {
+
+              earr.Site[1].buildingId = earr.Site[1].buildingId.concat(
+                newBuildingID
+              );
+              earr.Site[2].OfficeNames = earr.Site[2].OfficeNames.concat(
+                newOfficeName
+              );
+
+              earr.Site[1].buildingId = [...new Set(earr.Site[1].buildingId)];
+              earr.Site[2].OfficeNames = [...new Set(earr.Site[2].OfficeNames)];
+              //////// Replacement commeth
               var arr = [];
               arr = docs[0].buildingSites;
-              arr.push(req.body);
+              arr[index] = earr;
               docs[0].buildingSites = arr;
               newDoc = docs[0];
               addSite(docs[0]._id, newDoc, res);
             } else {
-              res.status(400);
-              res.send(
-                "Building ID already exists in a different building or site, Enter unique ID or contact KONE "
-              );
+              var bidArr = [];
+              var flag = true;
+              for (var i = 0; i < docs[0].buildingSites.length; i++) {
+                bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+              }
+
+
+              for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
+                if (bidArr.includes(req.body.Site[1].buildingId[i])) {
+                  flag = false;
+                  break;
+                }
+              }
+
+              if (flag) {
+                var arr = [];
+                arr = docs[0].buildingSites;
+                arr.push(req.body);
+                docs[0].buildingSites = arr;
+                newDoc = docs[0];
+                addSite(docs[0]._id, newDoc, res);
+              } else {
+                res.status(400);
+                res.send(
+                  "Building ID already exists in a different building or site, Enter unique ID or contact KONE "
+                );
+              }
             }
           }
+        } else {
+          res.status(400);
+          res.send(err);
         }
-      } else {
-        res.status(400);
-        res.send(err);
-      }
-    });
+      });
   }
 });
 
@@ -1079,28 +1078,34 @@ router.post("/Office", (req, res) => {
   if (bName != -1) {
     var officeName = req.body.officeName;
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
-        var arr = [];
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-            if (docs[0].buildingSites[i].Site[2].OfficeNames[s] == officeName) {
-              var obj = {
-                Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
-                Office_BuildingAccess: docs[0].buildingSites[i].Site[1].buildingId
-              };
-              arr.push(obj);
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
+          var arr = [];
+          for (var i = 0; i < docs[0].buildingSites.length; i++) {
+            for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
+              if (docs[0].buildingSites[i].Site[2].OfficeNames[s] == officeName) {
+                var obj = {
+                  Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
+                  Office_BuildingAccess: docs[0].buildingSites[i].Site[1].buildingId
+                };
+                arr.push(obj);
+              }
             }
           }
+          res.json(arr);
+        } else {
+          res.status(400);
+          res.send(err);
+          console.log(err);
         }
-        res.json(arr);
-      } else {
-        res.status(400);
-        res.send(err);
-        console.log(err);
-      }
-    });
+      });
   }
 });
 
@@ -1115,78 +1120,84 @@ router.get("/listOfficeId", (req, res) => {
     let buildingIdList = [];
     let arrbid = [];
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          console.log(docs[0].buildingSites[i].Site[1].buildingId);
-          arrbid = arrbid.concat(docs[0].buildingSites[i].Site[1].buildingId);
-          buildingIdList = (docs[0].buildingSites[i].Site[1].buildingId);
-        }
-
-
-        console.log(arrbid)
-        let pair = [];
-        Bids.find({
-          buildingName: bName,
-          buildingId: arrbid
-        }).then(bds => {
-          console.log(bds);
-          console.log("\n");
-          let flag;
-          for (var i = 0; i < arrbid.length; i++) {
-            flag = false;
-            for (var s = 0; s < bds.length; s++) {
-              if (arrbid[i] == bds[s].buildingId) {
-                pair[i] = [arrbid[i], bds[s].idName];
-                flag = true;
-              }
-            }
-            if (flag == false) {
-              pair[i] = [arrbid[i], "id Not Mapped yet"];
-            }
-          }
-          return pair
-        }).then(pair => {
-          var arr = [];
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
+            console.log(docs[0].buildingSites[i].Site[1].buildingId);
+            arrbid = arrbid.concat(docs[0].buildingSites[i].Site[1].buildingId);
+            buildingIdList = (docs[0].buildingSites[i].Site[1].buildingId);
+          }
 
 
-            for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-              console.log(docs[0].buildingSites[i].Site[1].buildingId);
-              let finalPair = [];
-
-              for (var u = 0; u < docs[0].buildingSites[i].Site[1].buildingId.length; u++) {
-                for (var x = 0; x < pair.length; x++) {
-                  if (pair[x][0] == docs[0].buildingSites[i].Site[1].buildingId[u]) {
-                    finalPair.push(pair[x]);
-                    break;
-                  }
+          console.log(arrbid)
+          let pair = [];
+          Bids.find({
+            buildingName: bName,
+            buildingId: arrbid
+          }).then(bds => {
+            console.log(bds);
+            console.log("\n");
+            let flag;
+            for (var i = 0; i < arrbid.length; i++) {
+              flag = false;
+              for (var s = 0; s < bds.length; s++) {
+                if (arrbid[i] == bds[s].buildingId) {
+                  pair[i] = [arrbid[i], bds[s].idName];
+                  flag = true;
                 }
               }
-
-
-              var obj = {
-                OfficeName: docs[0].buildingSites[i].Site[2].OfficeNames[s],
-                Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
-                Office_LocalName: finalPair
-              };
-              arr.push(obj);
+              if (flag == false) {
+                pair[i] = [arrbid[i], "id Not Mapped yet"];
+              }
             }
-          }
-          res.json(arr);
-
-        });
-
-
+            return pair
+          }).then(pair => {
+            var arr = [];
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
 
 
-      } else {
-        res.status(400);
-        res.send(err);
-        console.log(err);
-      }
-    });
+              for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
+                console.log(docs[0].buildingSites[i].Site[1].buildingId);
+                let finalPair = [];
+
+                for (var u = 0; u < docs[0].buildingSites[i].Site[1].buildingId.length; u++) {
+                  for (var x = 0; x < pair.length; x++) {
+                    if (pair[x][0] == docs[0].buildingSites[i].Site[1].buildingId[u]) {
+                      finalPair.push(pair[x]);
+                      break;
+                    }
+                  }
+                }
+
+
+                var obj = {
+                  OfficeName: docs[0].buildingSites[i].Site[2].OfficeNames[s],
+                  Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
+                  Office_LocalName: finalPair
+                };
+                arr.push(obj);
+              }
+            }
+            res.json(arr);
+
+          });
+
+
+
+
+        } else {
+          res.status(400);
+          res.send(err);
+          console.log(err);
+        }
+      });
   }
 });
 
@@ -1251,11 +1262,31 @@ router.get("/listOfficeBlock", (req, res) => {
 
         } else if (docs.locationType == "residential") {
 
+          Buildingsite.findOne({
+            buildingName: bName
+          }, (err, docs) => {
+
+            let jsonResponse = {
+              locationType: docs.locationType
+            };
+
+            let arrList = [];
+            for (var i = 0; i < docs.buildingSites.length; i++) {
+              console.log(docs.buildingSites[i]);
+
+              let siteElement = {
+                siteName: docs.buildingSites[i].Site[0].siteName,
+                buildingId: docs.buildingSites[i].Site[1].buildingId
+              }
+              arrList.push(siteElement);
+            }
+
+            jsonResponse.flatGroup = arrList;
+            res.send(jsonResponse);
+
+          });
 
 
-
-
-          res.send(docs.locationType);
 
         }
 
@@ -1282,29 +1313,35 @@ router.get("/listLocationAndOfficeName", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
-        var arr = [];
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-            var obj = docs[0].buildingSites[i].Site[2].OfficeNames[s];
-            arr.push(obj);
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
+          var arr = [];
+          for (var i = 0; i < docs[0].buildingSites.length; i++) {
+            for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
+              var obj = docs[0].buildingSites[i].Site[2].OfficeNames[s];
+              arr.push(obj);
+            }
           }
+          let toSend = {
+            locationType: docs[0].locationType,
+            officeNames: arr
+          };
+
+          res.json(toSend);
+
+        } else {
+          res.status(400);
+          res.send(err);
+          console.log(err);
         }
-        let toSend = {
-          locationType: docs[0].locationType,
-          officeNames: arr
-        };
-
-        res.json(toSend);
-
-      } else {
-        res.status(400);
-        res.send(err);
-        console.log(err);
-      }
-    });
+      });
   }
 });
 
@@ -1320,21 +1357,27 @@ router.get("/listBuildingId", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
-        var arr = [];
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          console.log(docs[0].buildingSites[i].Site[1].buildingId);
-          arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
+          var arr = [];
+          for (var i = 0; i < docs[0].buildingSites.length; i++) {
+            console.log(docs[0].buildingSites[i].Site[1].buildingId);
+            arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+          }
+          res.json(arr);
+        } else {
+          res.status(400);
+          res.send(err);
+          console.log(err);
         }
-        res.json(arr);
-      } else {
-        res.status(400);
-        res.send(err);
-        console.log(err);
-      }
-    });
+      });
   }
 });
 
@@ -1352,20 +1395,26 @@ router.get("/listOffice", (req, res) => {
     var officeArr = [];
     async function origanalList() {
       Buildingsite.find({
-        buildingName: bName
-      }, (err, docs) => {
-        if (!err) {
-          for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            arr = arr.concat(docs[0].buildingSites[i].Site[2].OfficeNames);
+          buildingName: bName
+        },
+        null, {
+          sort: {
+            'date': -1
+          },
+          limit: 1
+        }, (err, docs) => {
+          if (!err) {
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              arr = arr.concat(docs[0].buildingSites[i].Site[2].OfficeNames);
+            }
+            arr = arr.concat(officeArr);
+            arr = [...new Set(arr)];
+            res.json(arr);
+          } else {
+            res.status(400);
+            res.send(err);
           }
-          arr = arr.concat(officeArr);
-          arr = [...new Set(arr)];
-          res.json(arr);
-        } else {
-          res.status(400);
-          res.send(err);
-        }
-      });
+        });
     }
   }
 
@@ -1397,23 +1446,29 @@ router.get("/listSites", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
-        console.log("complete doc shown to user");
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
+          console.log("complete doc shown to user");
 
-        var arr = [];
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          console.log(docs[0].buildingSites[i].Site[0].siteName);
-          arr.push(docs[0].buildingSites[i].Site[0].siteName);
+          var arr = [];
+          for (var i = 0; i < docs[0].buildingSites.length; i++) {
+            console.log(docs[0].buildingSites[i].Site[0].siteName);
+            arr.push(docs[0].buildingSites[i].Site[0].siteName);
+          }
+          res.json(arr);
+        } else {
+          res.status(400);
+          res.send(err);
+          console.log(err);
         }
-        res.json(arr);
-      } else {
-        res.status(400);
-        res.send(err);
-        console.log(err);
-      }
-    });
+      });
   }
 });
 
@@ -1429,88 +1484,94 @@ router.get("/buildingDetails", (req, res) => {
   if (bName != -1) {
     let pair = [];
     Buildingsite.find({
-      buildingName: bName
-    }, (err, docs) => {
-      if (!err) {
+        buildingName: bName
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+        if (!err) {
 
-        var arr = [];
-        var buildingSet = [];
-        for (var i = 0; i < docs[0].buildingSites.length; i++) {
-          buildingSet[i] = docs[0].buildingSites[i].Site[1].buildingId;
-          arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
-        }
-        console.log(arr)
-        console.log(buildingSet)
-
-
-        Bids.find({
-          buildingName: bName,
-          buildingId: arr
-        }).then(bds => {
-          console.log(bds);
-          console.log("\n");
-          let flag;
-          for (var i = 0; i < arr.length; i++) {
-            flag = false;
-            for (var s = 0; s < bds.length; s++) {
-              if (arr[i] == bds[s].buildingId) {
-                pair[i] = [arr[i], bds[s].idName];
-                flag = true;
-              }
-            }
-            if (flag == false) {
-              pair[i] = [arr[i], "id Not Mapped yet"];
-            }
+          var arr = [];
+          var buildingSet = [];
+          for (var i = 0; i < docs[0].buildingSites.length; i++) {
+            buildingSet[i] = docs[0].buildingSites[i].Site[1].buildingId;
+            arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
           }
-          return pair;
-        }).then(pair => {
+          console.log(arr)
+          console.log(buildingSet)
 
-          let pairSet = [];
-          for (var u = 0; u < docs[0].buildingSites.length; u++) {
-            pairSet = [];
-            for (var x = 0; x < docs[0].buildingSites[u].Site[1].buildingId.length; x++) {
-              console.log(docs[0].buildingSites[u].Site[1].buildingId[x]);
-              for (var t = 0; t < pair.length; t++) {
-                if (docs[0].buildingSites[u].Site[1].buildingId[x] == pair[t][0]) {
-                  pairSet.push(pair[t]);
-                  break;
+
+          Bids.find({
+            buildingName: bName,
+            buildingId: arr
+          }).then(bds => {
+            console.log(bds);
+            console.log("\n");
+            let flag;
+            for (var i = 0; i < arr.length; i++) {
+              flag = false;
+              for (var s = 0; s < bds.length; s++) {
+                if (arr[i] == bds[s].buildingId) {
+                  pair[i] = [arr[i], bds[s].idName];
+                  flag = true;
                 }
               }
+              if (flag == false) {
+                pair[i] = [arr[i], "id Not Mapped yet"];
+              }
             }
-            docs[0].buildingSites[u].Site[1].buildingId = pairSet;
-            console.log("\n")
-          }
+            return pair;
+          }).then(pair => {
+
+            let pairSet = [];
+            for (var u = 0; u < docs[0].buildingSites.length; u++) {
+              pairSet = [];
+              for (var x = 0; x < docs[0].buildingSites[u].Site[1].buildingId.length; x++) {
+                console.log(docs[0].buildingSites[u].Site[1].buildingId[x]);
+                for (var t = 0; t < pair.length; t++) {
+                  if (docs[0].buildingSites[u].Site[1].buildingId[x] == pair[t][0]) {
+                    pairSet.push(pair[t]);
+                    break;
+                  }
+                }
+              }
+              docs[0].buildingSites[u].Site[1].buildingId = pairSet;
+              console.log("\n")
+            }
 
 
-          let sites1 = [];
-          for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
-            sites1 = sites1.concat(docs[0].buildingSites[tar].Site[0].siteName);
-          }
-          let bidspair = [];
-          for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
-            bidspair = bidspair.concat(docs[0].buildingSites[tar].Site[1].buildingId);
-          }
+            let sites1 = [];
+            for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
+              sites1 = sites1.concat(docs[0].buildingSites[tar].Site[0].siteName);
+            }
+            let bidspair = [];
+            for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
+              bidspair = bidspair.concat(docs[0].buildingSites[tar].Site[1].buildingId);
+            }
 
-          let olist = [];
-          for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
-            olist = olist.concat(docs[0].buildingSites[tar].Site[2].OfficeNames);
-          }
+            let olist = [];
+            for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
+              olist = olist.concat(docs[0].buildingSites[tar].Site[2].OfficeNames);
+            }
 
-          let obj3arr = {
-            Sites: sites1,
-            BuildingIdPair: bidspair,
-            Offices: olist
-          }
-          res.json(obj3arr);
+            let obj3arr = {
+              Sites: sites1,
+              BuildingIdPair: bidspair,
+              Offices: olist
+            }
+            res.json(obj3arr);
 
-        });
+          });
 
-      } else {
-        res.status(400);
-        res.send(err);
-        console.log(err);
-      }
-    });
+        } else {
+          res.status(400);
+          res.send(err);
+          console.log(err);
+        }
+      });
   }
 });
 
@@ -1761,9 +1822,15 @@ router.post("/createBulk", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     let employeeArray = req.body.arr;
+    let sessionIdHolder;
+    if (employeeArray[i].buildingId.length == 0) {
+      sessionIdHolder = "Not mapped yet";
+    } else {
+      sessionIdHolder = employeeArray[i].buildingId[0];
+    }
     for (var i = 0; i < employeeArray.length; i++) {
       employeeArray[i].buildingName = bName;
-      employeeArray[i].sessionId = employeeArray[i].buildingId[0];
+      employeeArray[i].sessionId = sessionIdHolder;
       employeeArray[i].createdAt = new Date();
     }
     console.log("employee Array inserted");
@@ -1929,6 +1996,15 @@ function insertOffice(req, res, bName) {
 // Insert Employee Record Function
 function insertRecord(req, res) {
   var employee = new Employee();
+
+  let sessionIdHolder;
+  if (req.body.buildingId.length == 0) {
+    sessionIdHolder = "Not mapped yet";
+  } else {
+    sessionIdHolder = req.body.buildingId[0];
+  }
+
+
   employee.fullName = req.body.fullName;
   employee.office = req.body.office;
   employee.officeEmail = req.body.officeEmail;
@@ -1940,7 +2016,7 @@ function insertRecord(req, res) {
   employee.terms = req.body.terms;
   employee.allowMessaging = req.body.allowMessaging;
   employee.permanent = req.body.permanent;
-  employee.sessionId = req.body.buildingId[0];
+  employee.sessionId = sessionIdHolder;
   employee.buildingName = req.body.buildingName;
   employee.createdAt = new Date();
   // add expiry date  new Date(); + 24 hrs
@@ -1967,29 +2043,35 @@ function insertRecord(req, res) {
 
 // Update existing Record
 function updateRecord(req, res) {
+
+
+
+
   if (validateEmail(req.body.officeEmail)) {
+
+    if (req.body.buildingId.length == 0) {
+      req.body.sessionId = "Not mapped yet";
+    } else {
+      req.body.sessionId = req.body.buildingId[0];
+    }
+
     Employee.findOneAndUpdate({
-        _id: req.body._id
-      },
-      req.body, {
-        new: true
-      },
-      (err, doc) => {
-        if (!err) {
-          res.send("record updated with  \n" + JSON.stringify(req.body));
+      _id: req.body._id
+    }, req.body, {
+      new: true
+    }, (err, doc) => {
+      if (!err) {
+        res.send("record updated with  \n" + JSON.stringify(req.body));
+      } else {
+        if (err.name == "ValidationError") {
+          res.status(400);
+          res.send("validation error " + err);
         } else {
-          if (err.name == "ValidationError") {
-            console.log("volidation error");
-            res.status(400);
-            res.send("validation error " + err);
-          } else {
-            console.log("Error during record update : " + err);
-            res.status(400);
-            res.send("Error during record update : " + err);
-          }
+          res.status(400);
+          res.send("Error during record update : " + err);
         }
       }
-    );
+    });
   } else {
     res.status(400);
     res.send("invalid email");
