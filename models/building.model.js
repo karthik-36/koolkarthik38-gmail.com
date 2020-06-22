@@ -1,26 +1,41 @@
 const mongoose = require('mongoose');
 
 var buildingSchema = new mongoose.Schema({
-  buildingName : {
-    type : String,
-    unique : true,
-    required : " full name is required"
+  buildingName: {
+    type: String,
+    unique: true,
+    required: " full name is required"
   },
-  locationType : {
-    type : String,
+  locationType: {
+    type: String,
     enum: ['office', 'residential'],
     default: 'office',
-    required : "Location Type is required"
+    required: "Location Type is required"
   },
-  countryCode : {
-    type : String,
-    required : "country code is required"
+  countryCode: {
+    type: String,
+    required: "country code is required"
   },
-  buildingSites : {
-    type : [] ,
-    required : " sites required"
-   }
+  country: {
+    type: String,
+    required: "country is required"
+  },
+  city: {
+    type: String,
+    required: "city is required"
+  },
+  postalCode: {
+    type: String,
+    required: "postalCode is required"
+  },
+  buildingSites: {
+    type: [],
+    required: " sites required"
+  }
 });
 
-buildingSchema.index({ buildingName : "text" , buildingSites : "text"});
-mongoose.model('buildings' , buildingSchema);
+buildingSchema.index({
+  buildingName: "text",
+  buildingSites: "text"
+});
+mongoose.model('buildings', buildingSchema);

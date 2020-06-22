@@ -15,7 +15,7 @@ var nodemailer = require('nodemailer');
 
 
 router.post("/getBuildingElement", (req, res) => {
-
+  res.set("Access-Control-Allow-Headers", "*");
   Buildingsite.find({
     buildingName: req.body.buildingName
   }).limit(1).then(bdocs => {
@@ -30,6 +30,9 @@ router.post("/getBuildingElement", (req, res) => {
       _id: bdocs[0]._id,
       locationType: bdocs[0].locationType,
       buildingName: bdocs[0].buildingName,
+      country: bdocs[0].country,
+      city: bdocs[0].city,
+      postalCode: bdocs[0].postalCode,
       locationId: base_64(bdocs[0].buildingName, bdocs[0].locationType),
       countryCode: bdocs[0].countryCode,
       buildingSites: buildingSite
@@ -64,11 +67,21 @@ router.post("/getBuildingElement", (req, res) => {
           jarr.push(mappedSites);
           jarr.push(docs);
           res.json(jarr);
+        }).catch(err => {
+          res.status(400);
+          res.send("Admin find error : " + err);
         });
+      }).catch(err => {
+        res.status(400);
+        res.send("buildingId pair fetch error : " + err);
       });
-
-
+    }).catch(err => {
+      res.status(400);
+      res.send("Office fetch error : " + err);
     });
+  }).catch(err => {
+    res.status(400);
+    res.send("Building id fetch error :" + err);
   });
 });
 
@@ -94,6 +107,9 @@ router.post("/searchBuilding", (req, res) => {
 
     res.json(jarr);
 
+  }).catch(err => {
+    res.status(400);
+    res.send(err);
   });
 
 });
@@ -159,14 +175,16 @@ router.post("/search", (req, res) => {
 router.post("/addAdmin", (req, res) => {
   const toLow = req.body.buildingName.replace(/ +/g, "");
   const lowBuildingName = toLow.toLowerCase();
-  base64data = base_64(lowBuildingName, req.body.locationType);
+  //  base64data = base_64(lowBuildingName, req.body.locationType);
   var newAdmin = new Admin();
 
+  //newDmin.locationId = req.body.locationId;
   newAdmin.username = req.body.username;
   newAdmin.password = req.body.password;
   newAdmin.locationType = req.body.locationType;
   newAdmin.locationName = lowBuildingName;
-  newAdmin.locationId = base64data;
+  //newAdmin.locationId = base64data;
+  newAdmin.locationId = req.body.locationId;
   newAdmin.serviceList = req.body.serviceList;
 
   if (req.body._id == undefined) {
@@ -223,7 +241,6 @@ router.post("/addSuperAdmin", (req, res) => {
   } else {
     res.status(400);
     res.send("error during insertion: email not valid");
-
   }
 
 
@@ -304,6 +321,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
 // Add New Building + ( offices and buildingId ==> localName pairs)
 router.post("/addBuilding", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
+
   let resultHolder = '';
   const toLow = req.body.buildingName.replace(/ +/g, "");
   const lowBuildingName = toLow.toLowerCase();
@@ -361,39 +379,14 @@ router.post("/addBuilding", (req, res) => {
         }
 
         var newBuilding = new Buildingsite();
+        newBuilding.country = req.body.country;
+        newBuilding.city = req.body.city;
+        newBuilding.postalCode = req.body.postalCode;
         newBuilding.buildingName = lowBuildingName;
         newBuilding.locationType = req.body.locationType;
         newBuilding.buildingSites = arrSites;
         newBuilding.countryCode = req.body.countryCode;
 
-        if (req.body.locationType != "residential") {
-          var newOffices = new Offices();
-          let officeArray = [];
-          for (var i = 0; i < req.body.offices.length; i++) {
-            var temp = {
-              officeName: req.body.offices[i],
-              buildingName: lowBuildingName
-            };
-            officeArray.push(temp);
-          }
-
-          Offices.collection.insert(officeArray, {
-            ordered: false
-          }, function(
-            err,
-            docs
-          ) {
-            if (err) {
-              console.log("officeerror");
-              console.error(err);
-              //    res.send(err);
-            } else {
-              console.log("Multiple documents inserted to Collection");
-              resultHolder = resultHolder + " Office Collection Added ,  "
-            }
-          });
-
-        }
 
         var newBids = new Bids();
         let bidsArray = [];
@@ -413,8 +406,45 @@ router.post("/addBuilding", (req, res) => {
           req.body.locationType &&
           req.body.Sites.length &&
           req.body.buildingType.length == req.body.buildingId.length &&
-          req.body.buildingId.length == req.body.idName.length
+          req.body.buildingId.length == req.body.idName.length &&
+          req.body.country && req.body.city && req.body.postalCode
         ) {
+
+
+
+          if (req.body.locationType != "residential") {
+            var newOffices = new Offices();
+            let officeArray = [];
+            for (var i = 0; i < req.body.offices.length; i++) {
+              var temp = {
+                officeName: req.body.offices[i],
+                buildingName: lowBuildingName
+              };
+              officeArray.push(temp);
+            }
+
+            Offices.collection.insert(officeArray, {
+              ordered: false
+            }, function(
+              err,
+              docs
+            ) {
+              if (err) {
+                console.log("officeerror");
+                console.error(err);
+                //    res.send(err);
+              } else {
+                console.log("Multiple documents inserted to Collection");
+                resultHolder = resultHolder + " Office Collection Added ,  "
+              }
+            });
+
+          }
+
+
+
+
+
           newBuilding.save((err, doc) => {
             if (!err) {
               resultHolder = resultHolder + " New Building Added ,  ";
@@ -435,7 +465,12 @@ router.post("/addBuilding", (req, res) => {
             }
           });
 
-          res.send("buildingid : " + base_64(lowBuildingName, req.body.locationType) + " \n " + resultHolder);
+          //    res.send("buildingid : " + base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.area) + " \n " + resultHolder);
+          let responseArr = {
+            message: "successful insertion",
+            authHeader: base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.postalCode)
+          };
+          res.send(responseArr);
           console.log(resultHolder);
         } else {
           res.status(400);
@@ -510,6 +545,9 @@ router.post("/updateBuilding", (req, res) => {
     let newBuilding = new Buildingsite();
     const toLow = req.body.buildingName.replace(/ +/g, "");
     const lowBuildingName = toLow.toLowerCase();
+    newBuilding.country = req.body.country;
+    newBuilding.city = req.body.city;
+    newBuilding.postalCode = req.body.postalCode;
     newBuilding.buildingName = lowBuildingName;
     newBuilding.locationType = req.body.locationType;
     newBuilding.buildingSites = arrSites;
@@ -539,12 +577,13 @@ router.post("/updateBuilding", (req, res) => {
         req.body.locationType &&
         req.body.Sites.length &&
         req.body.buildingType.length == req.body.buildingId.length &&
-        req.body.buildingId.length == req.body.idName.length) {
+        req.body.buildingId.length == req.body.idName.length &&
+        req.body.country && req.body.city && req.body.postalCode
+      ) {
 
         newBuilding._id = req.body._id;
-        //{ "carrier.state": { $ne: "NY" } }
 
-        //////////add here
+
         Bids.find({
           buildingId: req.body.buildingId,
           buildingName: {
@@ -628,11 +667,19 @@ router.post("/updateBuilding", (req, res) => {
                     .catch(err => console.error(`Delete failed with error: ${err}`))
                 }
 
+                let newAuth = base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.postalCode);
 
+                Admin.updateMany({
+                  locationName: lowBuildingName
+                }, {
+                  $set: {
+                    locationId: newAuth
+                  }
+                });
                 //  let responseArr = [auth,newBuilding];
                 let responseArr = {
                   message: "successful insertion",
-                  authHeader: base_64(lowBuildingName, req.body.locationType)
+                  authHeader: newAuth
                 };
                 res.send(responseArr);
               } else {
@@ -1613,6 +1660,30 @@ router.get("/listAll", (req, res) => {
 
 
 
+// test
+
+router.get("/testList", (req, res) => {
+  Employee.find({
+    approval: false,
+    permanent: false,
+    $where: function() {
+      return 3 > 2
+    }
+  }, (err, docs) => {
+    if (!err) {
+      console.log("complete doc shown to user");
+      res.set("Access-Control-Allow-Headers", "*");
+      res.json(docs);
+    } else {
+      res.set("Access-Control-Allow-Headers", "*");
+      res.status(400);
+      res.send(err);
+      console.log(err);
+    }
+  });
+});
+
+
 
 
 
@@ -1697,6 +1768,29 @@ router.get("/listApproved", (req, res) => {
 
 
 //list all unapproved  and visitor status users
+router.get("/listArchived", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
+  if (bName != -1) {
+    Employee.find({
+      buildingName: bName,
+      archived: true
+    }, function(err, docs) {
+      if (!err) {
+        console.log("complete doc shown to user");
+        res.json(docs);
+      } else {
+        res.status(400);
+        res.send(err);
+        console.log(err);
+      }
+    });
+  }
+});
+
+
+
+//list all unapproved  and visitor status users
 router.get("/listUnapprovedVisitor", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
@@ -1704,7 +1798,8 @@ router.get("/listUnapprovedVisitor", (req, res) => {
     Employee.find({
       approval: false,
       permanent: false,
-      buildingName: bName
+      buildingName: bName,
+      archived: false
     }, function(err, docs) {
       if (!err) {
         console.log("complete doc shown to user");
@@ -1822,16 +1917,20 @@ router.post("/createBulk", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     let employeeArray = req.body.arr;
-    let sessionIdHolder;
-    if (employeeArray[i].buildingId.length == 0) {
-      sessionIdHolder = "Not mapped yet";
-    } else {
-      sessionIdHolder = employeeArray[i].buildingId[0];
-    }
     for (var i = 0; i < employeeArray.length; i++) {
       employeeArray[i].buildingName = bName;
-      employeeArray[i].sessionId = sessionIdHolder;
+      employeeArray[i].archived = false;
       employeeArray[i].createdAt = new Date();
+
+
+      if (employeeArray[i].sessionId == undefined) {
+        if (employeeArray[i].buildingId.length == 0) {
+          employeeArray[i].sessionId = "Not mapped yet";
+        } else {
+          employeeArray[i].sessionId = employeeArray[i].buildingId[0];
+        }
+      }
+
     }
     console.log("employee Array inserted");
     console.log(employeeArray);
@@ -1846,7 +1945,7 @@ router.post("/createBulk", (req, res) => {
         res.status(400);
         res.send(err);
       } else {
-        res.send("Multiple documents inserted to Collection");
+        res.send("Multiple employees inserted to Collection");
       }
     });
   }
@@ -1998,12 +2097,16 @@ function insertRecord(req, res) {
   var employee = new Employee();
 
   let sessionIdHolder;
-  if (req.body.buildingId.length == 0) {
-    sessionIdHolder = "Not mapped yet";
-  } else {
-    sessionIdHolder = req.body.buildingId[0];
-  }
 
+  if (req.body.sessionId != undefined) {
+    sessionIdHolder = req.body.sessionId;
+  } else {
+    if (req.body.buildingId.length == 0) {
+      sessionIdHolder = "Not mapped yet";
+    } else {
+      sessionIdHolder = req.body.buildingId[0];
+    }
+  }
 
   employee.fullName = req.body.fullName;
   employee.office = req.body.office;
@@ -2017,26 +2120,61 @@ function insertRecord(req, res) {
   employee.allowMessaging = req.body.allowMessaging;
   employee.permanent = req.body.permanent;
   employee.sessionId = sessionIdHolder;
+  employee.archived = false;
   employee.buildingName = req.body.buildingName;
   employee.createdAt = new Date();
-  // add expiry date  new Date(); + 24 hrs
-  employee.save((err, doc) => {
-    if (!err) {
-      console.log("New employee created");
-      if (req.body.office != null) {
-        res.send("employee created ");
-      } else {
-        res.status(400);
-        res.send("employee not created ");
-      }
-    } else {
-      console.log("error during record insertion : " + err);
-      res.status(400);
-      res.send("error during record insertion : " + err);
-    }
-  });
-}
 
+
+  // remove below comment when frontend supports expiry date
+  /*
+    let isValid = true;
+    if (req.body.permanent = false) {
+      if (req.body.expiresAt == undefined) {
+        isValid = false;
+      } else {
+        employee.expiresAt = req.body.expiresAt;
+      }
+    }
+    */
+  // add expiry date  new Date(); + 24 hrs
+
+  let isValid = true;
+  let hardExpiryDate = new Date();
+  hardExpiryDate.setDate(hardExpiryDate.getDate() + 1);
+  if (req.body.permanent = false) {
+    if (req.body.expiresAt == undefined) {
+      employee.expiresAt = hardExpiryDate;
+    } else {
+      employee.expiresAt = req.body.expiresAt;
+    }
+  }
+
+
+  if (isValid) {
+    employee.save((err, doc) => {
+      if (!err) {
+        console.log("New employee created");
+        if (req.body.office != null) {
+          res.send("employee created ");
+        } else {
+          res.status(400);
+          res.send("employee not created ");
+        }
+      } else {
+        console.log("error during record insertion : " + err);
+        res.status(400);
+        res.send("error during record insertion : " + err);
+      }
+    });
+  } else {
+    res.send("visitors require expiration date");
+  }
+
+
+
+
+
+}
 
 
 
@@ -2044,15 +2182,13 @@ function insertRecord(req, res) {
 // Update existing Record
 function updateRecord(req, res) {
 
-
-
-
   if (validateEmail(req.body.officeEmail)) {
-
-    if (req.body.buildingId.length == 0) {
-      req.body.sessionId = "Not mapped yet";
-    } else {
-      req.body.sessionId = req.body.buildingId[0];
+    if (res.body.sessionId == undefined) {
+      if (req.body.buildingId.length == 0) {
+        req.body.sessionId = "Not mapped yet";
+      } else {
+        req.body.sessionId = req.body.buildingId[0];
+      }
     }
 
     Employee.findOneAndUpdate({
@@ -2174,8 +2310,14 @@ function addSite(id, newDoc, res) {
 
 
 // text => base64
-function base_64(str1, str2) {
-  return Buffer.from((str1 + ":" + str2)).toString('base64');
+
+//buildingname:buildingtype:buildingcountry:buildingcity:building
+//function base_64(str1, str2) {
+//  return Buffer.from((str1 + ":" + str2)).toString('base64');
+//}
+
+function base_64(buildingName, locationType, buildingCountry, buildingCity, postalCode) {
+  return Buffer.from(buildingName + ":" + locationType + ":" + buildingCountry + ":" + buildingCity + ":" + postalCode).toString('base64');
 }
 
 
@@ -2253,6 +2395,57 @@ function validateEmail(email) {
 
 function inValidateEmployee() {
   console.log("interval Called");
+  let currentDate = new Date();
+  Employee.updateMany({
+      approval: true,
+      permanent: false,
+      archived: false,
+      $where: function() {
+        return currentDate > this.expiresAt
+      }
+    }, {
+      $set: {
+        archived: true
+      }
+    },
+    function(err, result) {
+      if (err) {
+        console.log("interval error : " + err);
+      } else {
+        console.log("interval update sucess : " + result);
+      }
+    }
+  );
+
+}
+
+setInterval(inValidateEmployee, 3600000);
+
+
+
+module.exports = router;
+
+
+
+
+
+// uncoment to inspect result
+//    util.inspect(result, {
+//      showHidden: false,
+//      depth: null
+//    })
+
+/*
+console.log("date below");
+let dat = new Date();
+console.log(dat);
+dat.setDate(dat.getDate() + 365);
+console.log(dat);
+console.log(dat > new Date());
+*/
+/*
+function inValidateEmployee() {
+  console.log("interval Called");
   Employee.find({
     approval: true,
     permanent: false
@@ -2280,5 +2473,22 @@ function inValidateEmployee() {
 setInterval(inValidateEmployee, 3600000);
 
 
+function inValidateEmployee() {
+  console.log("interval Called");
+  Employee.updateMany({
+    approval: true,
+    permanent: false,
+    archived: false,
+    $where: function() {
+      return this.createdAt > this.expiresAt
+    }
+  }, {
+    $set: {
+      archived: true
+    }
+  })
+}
 
-module.exports = router;
+setInterval(inValidateEmployee, 360000);
+
+*/

@@ -1,71 +1,86 @@
 const mongoose = require('mongoose');
 
 var employeeSchema = new mongoose.Schema({
-  fullName : {
-    type : String,
-    required : " full name is required"
+  fullName: {
+    type: String,
+    required: " full name is required"
   },
-  office : {
-    type : String
+  locationId: {
+    type: String,
+    required: " locationId is required"
   },
-  buildingId : {
-    type : [String],
-    required : " Building ID is required"
+  office: {
+    type: String
   },
-  sites :{
-    type : [String],
-    required : "sites is required"
+  buildingId: {
+    type: [String],
+    required: " Building ID is required"
   },
-  officeEmail : {
-    type : String,
-    required : " office email is required",
+  sites: {
+    type: [String],
+    required: "sites is required"
+  },
+  officeEmail: {
+    type: String,
+    required: " office email is required",
     unique: false
   },
-  eId : {
-    type : String,
-      required : " employee id is required",
-      unique: false
+  eId: {
+    type: String,
+    required: " employee id is required",
+    unique: false
   },
-  phone : {
-    type : String,
-      required : " phone number is required",
-      unique: true
+  phone: {
+    type: String,
+    required: " phone number is required",
+    unique: true
   },
-  approval : {
-    type : Boolean,
-    required : " approval status is required"
+  approval: {
+    type: Boolean,
+    required: " approval status is required"
   },
-  terms : {
-    type : Boolean,
-    required : " terms status is required"
+  terms: {
+    type: Boolean,
+    required: " terms status is required"
   },
-  allowMessaging : {
-    type : Boolean,
-    required : "Messaging status is required"
+  allowMessaging: {
+    type: Boolean,
+    required: "Messaging status is required"
   },
-  permanent : {
-    type : Boolean,
-    default : true,
-    required : " permanent/temporary status is required"
+  permanent: {
+    type: Boolean,
+    default: true,
+    required: " permanent/temporary status is required"
   },
-  sessionId : {
-    type : String,
-    required : " SessionId is required"
+  sessionId: {
+    type: String,
+    required: " SessionId is required"
   },
-  buildingName : {
-    type : String,
-    required : "buildingName status is required"
+  buildingName: {
+    type: String,
+    required: "buildingName status is required"
   },
-  createdAt : {
-    type : Date
+  archived: {
+    type: Boolean,
+    default: false,
+    required: "Archived status is required"
+  },
+  expiresAt: {
+    type: Date
+  },
+  createdAt: {
+    type: Date
   }
 
 });
 
 employeeSchema.path('officeEmail').validate((val) => {
-    emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    return emailRegex.test(val);
+  emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  return emailRegex.test(val);
 }, 'Invalid e-mail.');
 
-employeeSchema.index({ buildingName : "text" , fullName : "text"});
-mongoose.model('employees' , employeeSchema);
+employeeSchema.index({
+  buildingName: "text",
+  fullName: "text"
+});
+mongoose.model('employees', employeeSchema);
