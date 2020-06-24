@@ -33,7 +33,7 @@ router.post("/getBuildingElement", (req, res) => {
       country: bdocs[0].country,
       city: bdocs[0].city,
       postalCode: bdocs[0].postalCode,
-      locationId: base_64(bdocs[0].buildingName, bdocs[0].locationType),
+      locationId: bdocs[0].locationId,
       countryCode: bdocs[0].countryCode,
       buildingSites: buildingSite
     };
@@ -175,15 +175,12 @@ router.post("/search", (req, res) => {
 router.post("/addAdmin", (req, res) => {
   const toLow = req.body.buildingName.replace(/ +/g, "");
   const lowBuildingName = toLow.toLowerCase();
-  //  base64data = base_64(lowBuildingName, req.body.locationType);
   var newAdmin = new Admin();
 
-  //newDmin.locationId = req.body.locationId;
   newAdmin.username = req.body.username;
   newAdmin.password = req.body.password;
   newAdmin.locationType = req.body.locationType;
   newAdmin.locationName = lowBuildingName;
-  //newAdmin.locationId = base64data;
   newAdmin.locationId = req.body.locationId;
   newAdmin.serviceList = req.body.serviceList;
 
@@ -208,11 +205,19 @@ router.post("/addAdmin", (req, res) => {
       new: true
     }, (err, doc) => {
       if (!err) {
-        res.send("record updated with  \n" + JSON.stringify(req.body));
+        let message = {
+          message: "record updated",
+          bodyDetail: req.body
+        }
+        res.json(message);
       } else {
         res.status(400);
+        let message = {
+          message: "record update failed",
+          errMsg: err
+        }
         console.log("Error during record update : " + err);
-        res.send("Error during record update : " + err);
+        res.send(message);
       }
     });
 
@@ -232,6 +237,10 @@ router.post("/addSuperAdmin", (req, res) => {
 
     newAdmin.save((err, doc) => {
       if (!err) {
+
+        let message = {
+          message: ""
+        }
         res.send("super admin added \n" + newAdmin);
       } else {
         res.status(400);
@@ -260,7 +269,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
   if (bName != -1) {
     let pair = [];
     Buildingsite.findOne({
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, (err, docs) => {
       if (!err) {
         var sites1 = [];
@@ -272,7 +281,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
         }
         console.log(sites1);
         Bids.find({
-          buildingName: bName
+          locationId: req.headers.buildingid
         }).then(bds => {
           for (var u = 0; u < bds.length; u++) {
             buildingId[u] = [bds[u].idName, bds[u].buildingId];
@@ -283,7 +292,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
         }).then(resolved => {
 
           Offices.find({
-            buildingName: bName
+            locationId: req.headers.buildingid
           }).then(offices => {
             for (var x = 0; x < offices.length; x++) {
               newOffices.push(offices[x].officeName);
@@ -328,15 +337,18 @@ router.post("/addBuilding", (req, res) => {
 
   let arrSites = [];
   let reason = "";
-
-
+  let newLocationId = base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.postalCode);
 
 
   Buildingsite.find({
-    buildingName: lowBuildingName
+    buildingName: lowBuildingName,
+    locationType: req.body.locationType,
+    country: req.body.country,
+    city: req.body.city,
+    postalCode: req.body.postalCode
   }).limit(1).then(bdocs => {
     if (bdocs.length > 0) {
-      reason = reason + "Building Name : " + bdocs[0].buildingName + " already exists ";
+      reason = reason + "Building Name : " + bdocs[0].buildingName + " already exists in " + req.body.city;
     }
 
     Bids.find({
@@ -378,6 +390,8 @@ router.post("/addBuilding", (req, res) => {
           arrSites.push(bsite);
         }
 
+
+
         var newBuilding = new Buildingsite();
         newBuilding.country = req.body.country;
         newBuilding.city = req.body.city;
@@ -386,6 +400,7 @@ router.post("/addBuilding", (req, res) => {
         newBuilding.locationType = req.body.locationType;
         newBuilding.buildingSites = arrSites;
         newBuilding.countryCode = req.body.countryCode;
+        newBuilding.locationId = newLocationId;
 
 
         var newBids = new Bids();
@@ -395,7 +410,8 @@ router.post("/addBuilding", (req, res) => {
             buildingName: lowBuildingName,
             buildingId: req.body.buildingId[i],
             idName: req.body.idName[i],
-            buildingType: req.body.buildingType[i]
+            buildingType: req.body.buildingType[i],
+            locationId: newLocationId
           };
           bidsArray.push(temp);
         }
@@ -407,7 +423,7 @@ router.post("/addBuilding", (req, res) => {
           req.body.Sites.length &&
           req.body.buildingType.length == req.body.buildingId.length &&
           req.body.buildingId.length == req.body.idName.length &&
-          req.body.country && req.body.city && req.body.postalCode
+          req.body.country && req.body.city && req.body.postalCode && newLocationId
         ) {
 
 
@@ -418,7 +434,8 @@ router.post("/addBuilding", (req, res) => {
             for (var i = 0; i < req.body.offices.length; i++) {
               var temp = {
                 officeName: req.body.offices[i],
-                buildingName: lowBuildingName
+                buildingName: lowBuildingName,
+                locationId: newLocationId
               };
               officeArray.push(temp);
             }
@@ -468,7 +485,7 @@ router.post("/addBuilding", (req, res) => {
           //    res.send("buildingid : " + base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.area) + " \n " + resultHolder);
           let responseArr = {
             message: "successful insertion",
-            authHeader: base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.postalCode)
+            authHeader: newLocationId
           };
           res.send(responseArr);
           console.log(resultHolder);
@@ -498,11 +515,11 @@ router.post("/updateBuilding", (req, res) => {
 
 
   let reason = "";
-
+  let constLocationId = req.body.locationId;
   Buildingsite.findOne({
-    buildingName: req.body.buildingName
+    locationId: constLocationId
   }).then(bdocs => {
-
+    //  constLocationId = bdocs.locationId;
     if (bdocs.buildingSites.length > 0) {
       return bdocs.buildingSites;
     } else {
@@ -551,6 +568,7 @@ router.post("/updateBuilding", (req, res) => {
     newBuilding.buildingName = lowBuildingName;
     newBuilding.locationType = req.body.locationType;
     newBuilding.buildingSites = arrSites;
+    newBuilding.locationId = constLocationId;
     newBuilding.countryCode = req.body.countryCode;
 
 
@@ -562,6 +580,7 @@ router.post("/updateBuilding", (req, res) => {
         buildingName: lowBuildingName,
         buildingId: req.body.buildingId[i],
         idName: req.body.idName[i],
+        locationId: constLocationId,
         buildingType: req.body.buildingType[i]
       };
       bidsArray.push(temp);
@@ -586,8 +605,8 @@ router.post("/updateBuilding", (req, res) => {
 
         Bids.find({
           buildingId: req.body.buildingId,
-          buildingName: {
-            $ne: lowBuildingName
+          locationId: {
+            $ne: constLocationId
           }
         }).then(docs => {
           if (docs.length > 0) {
@@ -609,7 +628,6 @@ router.post("/updateBuilding", (req, res) => {
         }).then(uniqueBuildingIds => {
           if (uniqueBuildingIds.length == 0) {
 
-
             Buildingsite.findOneAndUpdate({
               _id: req.body._id
             }, newBuilding, {
@@ -618,7 +636,7 @@ router.post("/updateBuilding", (req, res) => {
               if (!err) {
 
                 Bids.deleteMany({
-                    buildingName: req.body.buildingName
+                    locationId: constLocationId
                   })
                   .then(result => {
                     console.log(`Deleted ${result.deletedCount} item(s).`)
@@ -642,7 +660,8 @@ router.post("/updateBuilding", (req, res) => {
                   for (var i = 0; i < req.body.offices.length; i++) {
                     var temp = {
                       officeName: req.body.offices[i],
-                      buildingName: lowBuildingName
+                      buildingName: lowBuildingName,
+                      locationId: constLocationId
                     };
                     officeArray.push(temp);
                   }
@@ -667,19 +686,9 @@ router.post("/updateBuilding", (req, res) => {
                     .catch(err => console.error(`Delete failed with error: ${err}`))
                 }
 
-                let newAuth = base_64(lowBuildingName, req.body.locationType, req.body.country, req.body.city, req.body.postalCode);
-
-                Admin.updateMany({
-                  locationName: lowBuildingName
-                }, {
-                  $set: {
-                    locationId: newAuth
-                  }
-                });
-                //  let responseArr = [auth,newBuilding];
                 let responseArr = {
                   message: "successful insertion",
-                  authHeader: newAuth
+                  authHeader: constLocationId
                 };
                 res.send(responseArr);
               } else {
@@ -722,7 +731,7 @@ router.post("/AddSiteByName", (req, res) => {
   if (bName != -1) {
     console.log("bName  : " + bName + "  " + " Local list " + localList);
     Bids.find({
-      buildingName: bName,
+      locationId: req.headers.buildingid,
       buildingId: localList
     }).then(docs => {
       for (var i = 0; i < docs.length; i++) {
@@ -739,7 +748,7 @@ router.post("/AddSiteByName", (req, res) => {
 
       req.body.Site[1].buildingId = buildingIdList;
       Buildingsite.find({
-          buildingName: bName
+          locationId: req.headers.buildingid
         },
         null, {
           sort: {
@@ -865,6 +874,57 @@ router.post("/AddSiteByName", (req, res) => {
 
 
 
+router.post("/userEmailSmtp", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
+  if (bName != -1) {
+    let mail = req.body.officeEmail;
+
+
+    async function mailer() {
+      let testAccount = await nodemailer.createTestAccount();
+
+      // create reusable transporter object using the default SMTP transport
+      let transporter = nodemailer.createTransport({
+        host: "eudsmtp.konenet.com",
+        port: 25,
+        secure: false,
+        auth: {
+          user: "karthik.rsingh@kone.com",
+          pass: "xxx",
+        },
+      });
+
+      let info = await transporter.sendMail({
+        from: 'karthik.rsingh@kone.com', // sender address
+        to: "karthik.rsingh@kone.com", // list of receivers
+        subject: "Hello ✔", // Subject line
+        text: "Hello world?", // plain text body
+        html: "<b>Hello world?</b>", // html body
+      });
+
+      console.log("Message sent: %s", info.messageId);
+      // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+
+      // Preview only available when sending through an Ethereal account
+      console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+
+      res.send("email sent");
+
+    }
+
+    mailer();
+
+  }
+});
+
+
+
+
+
+
+
+
 
 router.post("/userEmail", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
@@ -875,7 +935,7 @@ router.post("/userEmail", (req, res) => {
       service: 'gmail',
       auth: {
         user: 'whatsapp2backend@gmail.com',
-        pass: 'musicSHIRT36'
+        pass: process.env.EMAILPASS
       }
     });
 
@@ -914,7 +974,7 @@ router.get("/buildingIdAndName", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Bids.find({
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, (err, docs) => {
       if (!err) {
         res.json(docs);
@@ -934,7 +994,7 @@ router.post("/onPageLoad", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, (err, docs) => {
       if (err) {
         res.status(400);
@@ -954,7 +1014,7 @@ router.post("/deleteSite", (req, res) => {
   if (bName != -1) {
     res.set("Access-Control-Allow-Headers", "*");
     Buildingsite.findOne({
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, (err, docs) => {
       if (!err) {
         if (docs.length == 0) {
@@ -999,7 +1059,7 @@ router.post("/addSite", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1125,7 +1185,7 @@ router.post("/Office", (req, res) => {
   if (bName != -1) {
     var officeName = req.body.officeName;
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1167,7 +1227,7 @@ router.get("/listOfficeId", (req, res) => {
     let buildingIdList = [];
     let arrbid = [];
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1186,7 +1246,7 @@ router.get("/listOfficeId", (req, res) => {
           console.log(arrbid)
           let pair = [];
           Bids.find({
-            buildingName: bName,
+            locationId: req.headers.buildingid,
             buildingId: arrbid
           }).then(bds => {
             console.log(bds);
@@ -1262,7 +1322,7 @@ router.get("/listOfficeBlock", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.findOne({
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, (err, docs) => {
       if (!err) {
         if (docs.locationType == "office") {
@@ -1310,7 +1370,7 @@ router.get("/listOfficeBlock", (req, res) => {
         } else if (docs.locationType == "residential") {
 
           Buildingsite.findOne({
-            buildingName: bName
+            locationId: req.headers.buildingid
           }, (err, docs) => {
 
             let jsonResponse = {
@@ -1360,7 +1420,7 @@ router.get("/listLocationAndOfficeName", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1404,7 +1464,7 @@ router.get("/listBuildingId", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1442,7 +1502,7 @@ router.get("/listOffice", (req, res) => {
     var officeArr = [];
     async function origanalList() {
       Buildingsite.find({
-          buildingName: bName
+          locationId: req.headers.buildingid
         },
         null, {
           sort: {
@@ -1466,7 +1526,9 @@ router.get("/listOffice", (req, res) => {
   }
 
   function getOfficeList(callback) {
-    Offices.find((err, docs) => {
+    Offices.find({
+      locationId: req.headers.buildingid
+    }, (err, docs) => {
       if (!err) {
         for (var s = 0; s < docs.length; s++) {
           console.log(" pushed " + docs[s].officeName);
@@ -1493,7 +1555,7 @@ router.get("/listSites", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1531,7 +1593,7 @@ router.get("/buildingDetails", (req, res) => {
   if (bName != -1) {
     let pair = [];
     Buildingsite.find({
-        buildingName: bName
+        locationId: req.headers.buildingid
       },
       null, {
         sort: {
@@ -1552,7 +1614,7 @@ router.get("/buildingDetails", (req, res) => {
 
 
           Bids.find({
-            buildingName: bName,
+            locationId: req.headers.buildingid,
             buildingId: arr
           }).then(bds => {
             console.log(bds);
@@ -1632,7 +1694,7 @@ router.post("/createOffice", (req, res) => {
   if (bName != -1) {
     if (req.body._id == null) {
       console.log("inserting new record");
-      insertOffice(req, res, bName);
+      insertOffice(req, res, bName, req.headers.buildingid);
     } else {
       res.status(400);
       res.send("office already exists");
@@ -1660,31 +1722,6 @@ router.get("/listAll", (req, res) => {
 
 
 
-// test
-
-router.get("/testList", (req, res) => {
-  Employee.find({
-    approval: false,
-    permanent: false,
-    $where: function() {
-      return 3 > 2
-    }
-  }, (err, docs) => {
-    if (!err) {
-      console.log("complete doc shown to user");
-      res.set("Access-Control-Allow-Headers", "*");
-      res.json(docs);
-    } else {
-      res.set("Access-Control-Allow-Headers", "*");
-      res.status(400);
-      res.send(err);
-      console.log(err);
-    }
-  });
-});
-
-
-
 
 
 
@@ -1692,16 +1729,13 @@ router.get("/testList", (req, res) => {
 // List Approved and Visitor status
 router.get("/listApprovedVisitor", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  // ex
-  //let current = curdate - (24 * 3600);
 
-  //
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Employee.find({
       approval: true,
       permanent: false,
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, function(err, docs) {
       // expiry date
       // current date
@@ -1728,7 +1762,7 @@ router.get("/listApprovedPermanent", (req, res) => {
     Employee.find({
       approval: true,
       permanent: true,
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, function(err, docs) {
       if (!err) {
         console.log("approved Permanent doc shown to user");
@@ -1750,6 +1784,7 @@ router.get("/listApprovedPermanent", (req, res) => {
 router.get("/listApproved", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   Employee.find({
+    locationId: req.headers.buildingid,
     approval: true
   }, function(err, docs) {
     if (!err) {
@@ -1773,7 +1808,7 @@ router.get("/listArchived", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Employee.find({
-      buildingName: bName,
+      locationId: req.headers.buildingid,
       archived: true
     }, function(err, docs) {
       if (!err) {
@@ -1798,7 +1833,7 @@ router.get("/listUnapprovedVisitor", (req, res) => {
     Employee.find({
       approval: false,
       permanent: false,
-      buildingName: bName,
+      locationId: req.headers.buildingid,
       archived: false
     }, function(err, docs) {
       if (!err) {
@@ -1825,7 +1860,7 @@ router.get("/listUnapprovedPermanent", (req, res) => {
     Employee.find({
       approval: false,
       permanent: true,
-      buildingName: bName
+      locationId: req.headers.buildingid
     }, function(err, docs) {
       if (!err) {
         console.log("complete doc shown to user");
@@ -1849,7 +1884,8 @@ router.get("/listUnapproved", (req, res) => {
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     Employee.find({
-      approval: false
+      approval: false,
+      locationId: req.headers.buildingid
     }, function(err, docs) {
       if (!err) {
         console.log("complete doc shown to user");
@@ -1892,8 +1928,6 @@ router.post("/create", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
-
-
     if (req.body._id == null) {
       req.body.buildingName = bName;
       console.log("inserting new record");
@@ -1902,8 +1936,6 @@ router.post("/create", (req, res) => {
       console.log("updating existing record");
       updateRecord(req, res);
     }
-
-
   }
 });
 
@@ -1921,13 +1953,14 @@ router.post("/createBulk", (req, res) => {
       employeeArray[i].buildingName = bName;
       employeeArray[i].archived = false;
       employeeArray[i].createdAt = new Date();
+      employeeArray[i].locationId = req.headers.buildingid;
 
 
       if (employeeArray[i].sessionId == undefined) {
         if (employeeArray[i].buildingId.length == 0) {
           employeeArray[i].sessionId = "Not mapped yet";
         } else {
-          employeeArray[i].sessionId = employeeArray[i].buildingId[0];
+          employeeArray[i].sessionId = employeeArray[i].buildingId[0].name;
         }
       }
 
@@ -2070,11 +2103,43 @@ router.post("/validatePhone", (req, res) => {
 
 
 
+
+router.post("/test123", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  Bids.find({
+    buildingId: ["bhi0", "bhi2"]
+  }).then(bidPair => {
+    console.log(bidPair);
+    let arr = [];
+    for (var i = 0; i < bidPair.length; i++) {
+      let temp = {
+        name: bidPair[i].buildingId,
+        localName: bidPair[i].idName
+      }
+      arr.push(temp);
+    }
+    let resp = {}
+    resp.buildingId = arr;
+    res.send(resp);
+  }).catch(error => {
+    res.status(400);
+    res.send(error);
+  })
+
+});
+
+
+
+
+
+
+
 // Insert New Office
-function insertOffice(req, res, bName) {
+function insertOffice(req, res, bName, locationId) {
   var office = new Offices();
   office.officeName = req.body.officeName;
   office.buildingName = bName;
+  office.locationId = locationId;
   office.save((err, doc) => {
     if (!err) {
       console.log("office added");
@@ -2089,89 +2154,92 @@ function insertOffice(req, res, bName) {
 
 
 
+//
 
-
-
+//
 // Insert Employee Record Function
 function insertRecord(req, res) {
+
   var employee = new Employee();
 
-  let sessionIdHolder;
 
-  if (req.body.sessionId != undefined) {
-    sessionIdHolder = req.body.sessionId;
-  } else {
-    if (req.body.buildingId.length == 0) {
-      sessionIdHolder = "Not mapped yet";
-    } else {
-      sessionIdHolder = req.body.buildingId[0];
+  Bids.find({
+    buildingId: req.body.buildingId
+  }).then(bidPair => {
+    console.log(bidPair);
+    let idNamePair = [];
+    for (var i = 0; i < bidPair.length; i++) {
+      let temp = {
+        name: bidPair[i].buildingId,
+        localName: bidPair[i].idName
+      }
+      idNamePair.push(temp);
     }
-  }
 
-  employee.fullName = req.body.fullName;
-  employee.office = req.body.office;
-  employee.officeEmail = req.body.officeEmail;
-  employee.buildingId = req.body.buildingId;
-  employee.sites = req.body.sites;
-  employee.eId = req.body.eId;
-  employee.phone = req.body.phone;
-  employee.approval = req.body.approval;
-  employee.terms = req.body.terms;
-  employee.allowMessaging = req.body.allowMessaging;
-  employee.permanent = req.body.permanent;
-  employee.sessionId = sessionIdHolder;
-  employee.archived = false;
-  employee.buildingName = req.body.buildingName;
-  employee.createdAt = new Date();
+    let sessionIdHolder;
+    if (req.body.sessionId != undefined) {
+      sessionIdHolder = req.body.sessionId;
+    } else {
+      if (req.body.buildingId.length == 0) {
+        sessionIdHolder = "Not mapped yet";
+      } else {
+        sessionIdHolder = req.body.buildingId[0].name;
+      }
+    }
+    employee.fullName = req.body.fullName;
+    employee.office = req.body.office;
+    employee.officeEmail = req.body.officeEmail;
+    //  employee.buildingId = req.body.buildingId;
+    employee.buildingId = idNamePair;
+    employee.sites = req.body.sites;
+    employee.eId = req.body.eId;
+    employee.phone = req.body.phone;
+    employee.approval = req.body.approval;
+    employee.terms = req.body.terms;
+    employee.allowMessaging = req.body.allowMessaging;
+    employee.permanent = req.body.permanent;
+    employee.sessionId = sessionIdHolder;
+    employee.archived = false;
+    employee.locationId = req.headers.buildingid;
+    employee.buildingName = req.body.buildingName;
+    employee.createdAt = new Date();
 
-
-  // remove below comment when frontend supports expiry date
-  /*
     let isValid = true;
+    let hardExpiryDate = new Date();
+    hardExpiryDate.setDate(hardExpiryDate.getDate() + 1);
     if (req.body.permanent = false) {
       if (req.body.expiresAt == undefined) {
-        isValid = false;
+        employee.expiresAt = hardExpiryDate;
       } else {
         employee.expiresAt = req.body.expiresAt;
       }
     }
-    */
-  // add expiry date  new Date(); + 24 hrs
-
-  let isValid = true;
-  let hardExpiryDate = new Date();
-  hardExpiryDate.setDate(hardExpiryDate.getDate() + 1);
-  if (req.body.permanent = false) {
-    if (req.body.expiresAt == undefined) {
-      employee.expiresAt = hardExpiryDate;
-    } else {
-      employee.expiresAt = req.body.expiresAt;
-    }
-  }
 
 
-  if (isValid) {
-    employee.save((err, doc) => {
-      if (!err) {
-        console.log("New employee created");
-        if (req.body.office != null) {
-          res.send("employee created ");
+    if (isValid) {
+      employee.save((err, doc) => {
+        if (!err) {
+          console.log("New employee created");
+          if (req.body.office != null) {
+            res.send("employee created ");
+          } else {
+            res.status(400);
+            res.send("employee not created ");
+          }
         } else {
+          console.log("error during record insertion : " + err);
           res.status(400);
-          res.send("employee not created ");
+          res.send("error during record insertion : " + err);
         }
-      } else {
-        console.log("error during record insertion : " + err);
-        res.status(400);
-        res.send("error during record insertion : " + err);
-      }
-    });
-  } else {
-    res.send("visitors require expiration date");
-  }
+      });
+    } else {
+      res.send("visitors require expiration date");
+    }
 
-
-
+  }).catch(error => {
+    res.status(400);
+    res.send(error);
+  });
 
 
 }
@@ -2182,37 +2250,58 @@ function insertRecord(req, res) {
 // Update existing Record
 function updateRecord(req, res) {
 
-  if (validateEmail(req.body.officeEmail)) {
-    if (res.body.sessionId == undefined) {
-      if (req.body.buildingId.length == 0) {
-        req.body.sessionId = "Not mapped yet";
-      } else {
-        req.body.sessionId = req.body.buildingId[0];
-      }
-    }
 
-    Employee.findOneAndUpdate({
-      _id: req.body._id
-    }, req.body, {
-      new: true
-    }, (err, doc) => {
-      if (!err) {
-        res.send("record updated with  \n" + JSON.stringify(req.body));
-      } else {
-        if (err.name == "ValidationError") {
-          res.status(400);
-          res.send("validation error " + err);
+  Bids.find({
+    buildingId: req.body.buildingId
+  }).then(bidPair => {
+    console.log(bidPair);
+    let idNamePair = [];
+    for (var i = 0; i < bidPair.length; i++) {
+      let temp = {
+        name: bidPair[i].buildingId,
+        localName: bidPair[i].idName
+      }
+      idNamePair.push(temp);
+
+    }
+    req.body.buildingId = idNamePair;
+    if (validateEmail(req.body.officeEmail)) {
+      if (req.body.sessionId == undefined) {
+        if (req.body.buildingId.length == 0) {
+          req.body.sessionId = "Not mapped yet";
         } else {
-          res.status(400);
-          res.send("Error during record update : " + err);
+          req.body.sessionId = req.body.buildingId[0].name;
         }
       }
-    });
-  } else {
+
+      Employee.findOneAndUpdate({
+        _id: req.body._id
+      }, req.body, {
+        new: true
+      }, (err, doc) => {
+        if (!err) {
+          res.send("record updated with  \n" + JSON.stringify(req.body));
+        } else {
+          if (err.name == "ValidationError") {
+            res.status(400);
+            res.send("validation error " + err);
+          } else {
+            res.status(400);
+            res.send("Error during record update : " + err);
+          }
+        }
+      });
+    } else {
+      res.status(400);
+      res.send("invalid email");
+      console.log("invalid email");
+    }
+
+  }).catch(error => {
     res.status(400);
-    res.send("invalid email");
-    console.log("invalid email");
-  }
+    res.send(error);
+  });
+
 }
 
 
@@ -2307,20 +2396,19 @@ function addSite(id, newDoc, res) {
   );
 }
 
-
-
 // text => base64
-
 //buildingname:buildingtype:buildingcountry:buildingcity:building
 //function base_64(str1, str2) {
 //  return Buffer.from((str1 + ":" + str2)).toString('base64');
 //}
 
 function base_64(buildingName, locationType, buildingCountry, buildingCity, postalCode) {
-  return Buffer.from(buildingName + ":" + locationType + ":" + buildingCountry + ":" + buildingCity + ":" + postalCode).toString('base64');
+  return Buffer.from(buildingName + ":" + locationType + ":" + buildingCountry + ":" + buildingCity + ":" + postalCode + ":" + new Date().valueOf()).toString('base64');
 }
 
 
+console.log("bname:office:india:blore:1003456" + new Date().valueOf());
+console.log(Buffer.from("bname:office:india:blore:1003456" + new Date()).toString('base64'));
 
 // base64 => text
 function to_ascii(res, str) {

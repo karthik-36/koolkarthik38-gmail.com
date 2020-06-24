@@ -28,6 +28,10 @@ var buildingSchema = new mongoose.Schema({
     type: String,
     required: "postalCode is required"
   },
+  locationId: {
+    type: String,
+    required: " locationId is required"
+  },
   buildingSites: {
     type: [],
     required: " sites required"

@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+
+var buildingIdPair = new mongoose.Schema({
+  name: {
+    type: String,
+    required: " building id is required"
+  },
+  localName: {
+    type: String,
+    required: " local Name is required , check if local name was added to buildindId"
+  }
+}, {
+  _id: false
+});
+
+
 var employeeSchema = new mongoose.Schema({
   fullName: {
     type: String,
@@ -13,7 +28,7 @@ var employeeSchema = new mongoose.Schema({
     type: String
   },
   buildingId: {
-    type: [String],
+    type: [buildingIdPair],
     required: " Building ID is required"
   },
   sites: {
