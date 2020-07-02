@@ -9,7 +9,12 @@ let Buildingsite = mongoose.model("buildings");
 const Offices = mongoose.model("office");
 const Bids = mongoose.model("bids");
 const util = require('util')
+var bcrypt = require('bcryptjs');
 var nodemailer = require('nodemailer');
+var cryptoJS = require("crypto-js");
+const jwt = require('jsonwebtoken');
+
+//Dncrypt
 
 
 
@@ -169,59 +174,279 @@ router.post("/search", (req, res) => {
 
 
 
+router.post("/resetMail", authenticateToken, (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  Admin.findOne({
+    username: req.body.username
+  }).then(docs => {
+    if (docs == null) {
+      let message = {
+        message: "user not found"
+      }
+      res.status(400);
+      res.json(message);
+    } else {
+
+      let mail = req.body.username;
+      var transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'whatsapp2backend@gmail.com',
+          pass: process.env.EMAILPASS
+        }
+      });
+
+
+      let currTime = new Date().valueOf();
+      console.log(currTime);
+      var ciphertext = cryptoJS.AES.encrypt(currTime.toString(), process.env.TIMECRYPT).toString();
+
+
+      console.log(ciphertext);
+
+      // Decrypt
+      //  var bytes = cryptoJS.AES.decrypt(ciphertext, process.env.TIMECRYPT);
+      //  var plaintext = parseInt(bytes.toString(cryptoJS.enc.Utf8));
+      //      console.log(plaintext);
+      //      console.log(docs);
+
+
+      let link = "https://user-management.kone.com/resetpassword.html?locationId=" + docs.locationId + "&username=" + docs.username + "&_id=" + docs._id + "&authId=" + ciphertext;
+
+      var mailOptions = {
+        from: 'WB_Karthik@gmail.com',
+        to: mail,
+        subject: 'KONE User Management tool - Password reset link',
+        text: 'KONE password reset link',
+        html: '<div style="background-color: rgba(37 ,211, 102 , 0.5); border-radius: 20px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Click below link to reset password </h1> <p style = "padding : 0px 0px 5px 20px;"> Link will be valid for only 1 hour </p><button style = "margin-left: 20px; margin-bottom: 8px; padding: 5px 10px 5px 10px; border-radius: 10px;" type="button"><a href=' + link + ' >Reset link</a></button> </div>'
+      };
+
+      transporter.sendMail(mailOptions, function(error, info) {
+        if (error) {
+          console.log(error);
+          res.status(400).send("nodemailer error : " + error);
+        } else {
+          let message = {
+            message: "Reset password link was mailed " + req.body.username + ", please check your email"
+          }
+          res.json(message);
+          console.log('Email sent: ' + info.response);
+          //  res.send("email recieved");
+        }
+      });
+    }
+  }).catch(error => {
+    console.log(error);
+    let message = {
+      error: error
+    }
+    res.status(400).json(message);
+
+  });
+
+
+});
+
+
+
+router.post("/resetAdminPassword", async (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  // Decrypt
+  const ciphertext = req.body.authId;
+  var bytes = cryptoJS.AES.decrypt(ciphertext, process.env.TIMECRYPT);
+  var usertime = parseInt(bytes.toString(cryptoJS.enc.Utf8));
+  console.log(usertime);
+
+  let currentTime = new Date().valueOf();
+  if ((usertime + 3600) > currentTime) {
+    let newPassword = await bcrypt.hash(req.body.password.toString(), 10);
+    Admin.update({
+        _id: req.body._id
+      }, {
+        $set: {
+          password: newPassword
+        }
+      },
+      function(err, result) {
+        if (err) {
+          let message = {
+            error: err
+          }
+          res.status(400).json(message);
+        } else {
+          let message = {
+            message: "password was reset"
+          }
+          res.json(message);
+        }
+      }
+    );
+
+
+
+  } else {
+    let message = {
+      err: "Reset timer has expired"
+    }
+    res.status(400).json(message);
+  }
+
+});
+
+
+
+
+
+
+
 
 
 // Add New Administrator
-router.post("/addAdmin", (req, res) => {
-  const toLow = req.body.buildingName.replace(/ +/g, "");
-  const lowBuildingName = toLow.toLowerCase();
-  var newAdmin = new Admin();
+router.post("/addAdminJwt", async (req, res) => {
+  try {
+    req.body.password = await bcrypt.hash(req.body.password.toString(), 10);
+    const toLow = req.body.buildingName.replace(/ +/g, "");
+    const lowBuildingName = toLow.toLowerCase();
+    var newAdmin = new Admin();
+    newAdmin.username = req.body.username;
+    newAdmin.password = req.body.password;
+    newAdmin.locationType = req.body.locationType;
+    newAdmin.locationName = lowBuildingName;
+    newAdmin.locationId = req.body.locationId;
+    newAdmin.serviceList = req.body.serviceList;
+    if (req.body._id == undefined) {
 
-  newAdmin.username = req.body.username;
-  newAdmin.password = req.body.password;
-  newAdmin.locationType = req.body.locationType;
-  newAdmin.locationName = lowBuildingName;
-  newAdmin.locationId = req.body.locationId;
-  newAdmin.serviceList = req.body.serviceList;
+      console.log("no id");
+      newAdmin.save((err, doc) => {
+        if (!err) {
+          let message = {
+            message: "record added",
+            bodyDetail: newAdmin
+          }
+          res.status(200);
 
-  if (req.body._id == undefined) {
-
-    console.log("no id");
-    newAdmin.save((err, doc) => {
-      if (!err) {
-        res.send("admin added \n" + newAdmin);
-      } else {
-        res.status(400);
-        res.send("error during insertion: " + err);
-      }
-    });
-
-  } else {
-    console.log("yes id");
-    newAdmin._id = req.body._id;
-    Admin.findOneAndUpdate({
-      _id: req.body._id
-    }, newAdmin, {
-      new: true
-    }, (err, doc) => {
-      if (!err) {
-        let message = {
-          message: "record updated",
-          bodyDetail: req.body
+          res.json(message);
+        } else {
+          let message = {
+            message: "record update failed",
+            errMsg: err
+          }
+          res.status(400);
+          res.json(message);
         }
-        res.json(message);
-      } else {
-        res.status(400);
-        let message = {
-          message: "record update failed",
-          errMsg: err
-        }
-        console.log("Error during record update : " + err);
-        res.send(message);
-      }
-    });
+      });
 
+    } else {
+      console.log("yes id");
+      newAdmin._id = req.body._id;
+      Admin.findOneAndUpdate({
+        _id: req.body._id
+      }, newAdmin, {
+        new: true
+      }, (err, doc) => {
+        if (!err) {
+          let message = {
+            message: "record updated",
+            bodyDetail: req.body
+          }
+          res.status(200);
+          res.json(message);
+        } else {
+          let message = {
+            message: "record update failed",
+            errMsg: err
+          }
+          console.log("Error during record update : " + err);
+          res.status(400);
+          res.json(message);
+        }
+      });
+
+    }
+
+  } catch (err) {
+    console.log(err);
+    res.send("error while creating hash : " + err);
   }
+
+});
+
+
+
+
+
+
+
+
+
+// Add New Administrator
+router.post("/addAdmin", async (req, res) => {
+  try {
+    req.body.password = await bcrypt.hash(req.body.password.toString(), 10);
+    const toLow = req.body.buildingName.replace(/ +/g, "");
+    const lowBuildingName = toLow.toLowerCase();
+    var newAdmin = new Admin();
+    newAdmin.username = req.body.username;
+    newAdmin.password = req.body.password;
+    newAdmin.locationType = req.body.locationType;
+    newAdmin.locationName = lowBuildingName;
+    newAdmin.locationId = req.body.locationId;
+    newAdmin.serviceList = req.body.serviceList;
+    if (req.body._id == undefined) {
+
+      console.log("no id");
+      newAdmin.save((err, doc) => {
+        if (!err) {
+          let message = {
+            message: "record updated",
+            bodyDetail: newAdmin
+          }
+          res.status(200);
+          res.json(message);
+        } else {
+          let message = {
+            message: "record update failed",
+            errMsg: err
+          }
+          res.status(400);
+          res.json(message);
+        }
+      });
+
+    } else {
+      console.log("yes id");
+      newAdmin._id = req.body._id;
+      Admin.findOneAndUpdate({
+        _id: req.body._id
+      }, newAdmin, {
+        new: true
+      }, (err, doc) => {
+        if (!err) {
+          let message = {
+            message: "record updated",
+            bodyDetail: req.body
+          }
+          res.status(200);
+          res.json(message);
+        } else {
+          let message = {
+            message: "record update failed",
+            errMsg: err
+          }
+          console.log("Error during record update : " + err);
+          res.status(400);
+          res.json(message);
+        }
+      });
+
+    }
+
+  } catch (err) {
+    console.log(err);
+    res.send("error while creating hash : " + err);
+  }
+
+
 });
 
 
@@ -239,9 +464,10 @@ router.post("/addSuperAdmin", (req, res) => {
       if (!err) {
 
         let message = {
-          message: ""
+          message: "",
+          details: newAdmin
         }
-        res.send("super admin added \n" + newAdmin);
+        res.json(message);
       } else {
         res.status(400);
         res.send("error during insertion: " + err);
@@ -761,8 +987,6 @@ router.post("/AddSiteByName", (req, res) => {
               res.status(400);
               res.send("building not found");
             } else {
-
-
               var siteExists = false;
               siteArr = [];
               for (var i = 0; i < docs[0].buildingSites.length; i++) {
@@ -926,37 +1150,15 @@ router.post("/userEmailSmtp", (req, res) => {
 
 
 
-router.post("/userEmail", (req, res) => {
+router.post("/userEmail", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
+
     let mail = req.body.officeEmail;
-    var transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'whatsapp2backend@gmail.com',
-        pass: process.env.EMAILPASS
-      }
-    });
-
-    var mailOptions = {
-      from: 'WB_Karthik@gmail.com',
-      to: mail,
-      subject: 'Your building access request has been approved',
-      text: 'You now have access to services in kosmoone.',
-      html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hello ' + req.body.fullName + ', you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
-    };
-
-    transporter.sendMail(mailOptions, function(error, info) {
-      if (error) {
-        console.log(error);
-      } else {
-        console.log('Email sent: ' + info.response);
-      }
-    });
+    sendMail(req, res, mail);
 
 
-    res.send("email recieved");
   }
 });
 
@@ -1221,6 +1423,7 @@ router.post("/Office", (req, res) => {
 
 //List office IDs of a building
 router.get("/listOfficeId", (req, res) => {
+
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1235,74 +1438,137 @@ router.get("/listOfficeId", (req, res) => {
         },
         limit: 1
       }, (err, docs) => {
-        if (!err) {
-          for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            console.log(docs[0].buildingSites[i].Site[1].buildingId);
-            arrbid = arrbid.concat(docs[0].buildingSites[i].Site[1].buildingId);
-            buildingIdList = (docs[0].buildingSites[i].Site[1].buildingId);
-          }
 
 
-          console.log(arrbid)
-          let pair = [];
-          Bids.find({
-            locationId: req.headers.buildingid,
-            buildingId: arrbid
-          }).then(bds => {
-            console.log(bds);
-            console.log("\n");
-            let flag;
-            for (var i = 0; i < arrbid.length; i++) {
-              flag = false;
-              for (var s = 0; s < bds.length; s++) {
-                if (arrbid[i] == bds[s].buildingId) {
-                  pair[i] = [arrbid[i], bds[s].idName];
-                  flag = true;
-                }
-              }
-              if (flag == false) {
-                pair[i] = [arrbid[i], "id Not Mapped yet"];
-              }
-            }
-            return pair
-          }).then(pair => {
-            var arr = [];
+        if (docs[0].locationType == "office") {
+
+
+          if (!err) {
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              console.log(docs[0].buildingSites[i].Site[1].buildingId);
+              arrbid = arrbid.concat(docs[0].buildingSites[i].Site[1].buildingId);
+              buildingIdList = (docs[0].buildingSites[i].Site[1].buildingId);
+            }
 
 
-              for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-                console.log(docs[0].buildingSites[i].Site[1].buildingId);
-                let finalPair = [];
-
-                for (var u = 0; u < docs[0].buildingSites[i].Site[1].buildingId.length; u++) {
-                  for (var x = 0; x < pair.length; x++) {
-                    if (pair[x][0] == docs[0].buildingSites[i].Site[1].buildingId[u]) {
-                      finalPair.push(pair[x]);
-                      break;
-                    }
+            console.log(arrbid)
+            let pair = [];
+            Bids.find({
+              locationId: req.headers.buildingid,
+              buildingId: arrbid
+            }).then(bds => {
+              console.log(bds);
+              console.log("\n");
+              let flag;
+              for (var i = 0; i < arrbid.length; i++) {
+                flag = false;
+                for (var s = 0; s < bds.length; s++) {
+                  if (arrbid[i] == bds[s].buildingId) {
+                    pair[i] = [arrbid[i], bds[s].idName];
+                    flag = true;
                   }
                 }
-
-
-                var obj = {
-                  OfficeName: docs[0].buildingSites[i].Site[2].OfficeNames[s],
-                  Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
-                  Office_LocalName: finalPair
-                };
-                arr.push(obj);
+                if (flag == false) {
+                  pair[i] = [arrbid[i], "id Not Mapped yet"];
+                }
               }
-            }
-            res.json(arr);
+              return pair
+            }).then(pair => {
+              var arr = [];
+              for (var i = 0; i < docs[0].buildingSites.length; i++) {
 
-          });
+
+                for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
+                  console.log(docs[0].buildingSites[i].Site[1].buildingId);
+                  let finalPair = [];
+
+                  for (var u = 0; u < docs[0].buildingSites[i].Site[1].buildingId.length; u++) {
+                    for (var x = 0; x < pair.length; x++) {
+                      if (pair[x][0] == docs[0].buildingSites[i].Site[1].buildingId[u]) {
+                        finalPair.push(pair[x]);
+                        break;
+                      }
+                    }
+                  }
 
 
+                  var obj = {
+                    OfficeName: docs[0].buildingSites[i].Site[2].OfficeNames[s],
+                    Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
+                    Office_LocalName: finalPair
+                  };
+                  arr.push(obj);
+                }
+              }
+              res.json(arr);
 
+            });
+
+          } else {
+            res.status(400);
+            res.send(err);
+            console.log(err);
+          }
 
         } else {
-          res.status(400);
-          res.send(err);
-          console.log(err);
+          if (!err) {
+
+            console.log(docs[0])
+            let bidArr = [];
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+            }
+
+
+            Bids.find({
+              locationId: req.headers.buildingid,
+              buildingId: bidArr
+            }).then(bds => {
+
+              console.log(bds)
+              let map = new Map();
+              for (var s = 0; s < bds.length; s++) {
+                map.set(bds[s].buildingId, bds[s].idName);
+              }
+              //  res.json({
+              //    bidArr: bds
+              //  });
+              console.log(map);
+
+
+
+              let finalArr = [];
+              for (var s = 0; s < docs[0].buildingSites.length; s++) {
+
+                let pairs = [];
+                for (var x = 0; x < docs[0].buildingSites[s].Site[1].buildingId.length; x++) {
+                  let element = [docs[0].buildingSites[s].Site[1].buildingId[x], map.get(docs[0].buildingSites[s].Site[1].buildingId[x])];
+                  pairs.push(element);
+                }
+                //    console.log(pairs);
+
+                let obj = {
+                  OfficeName: docs[0].buildingSites[s].Site[0].siteName,
+                  Office_SiteAccess: docs[0].buildingSites[s].Site[0].siteName,
+                  Office_LocalName: pairs
+                }
+
+                finalArr.push(obj);
+              }
+
+              res.json(finalArr);
+
+            })
+            //.catch(err => res.status(400).json({
+            //  error: "error is : " + err
+            //}));
+
+          } else {
+            res.status(400).json({
+              error: err
+            });
+          }
+
         }
       });
   }
@@ -1414,8 +1680,7 @@ router.get("/listOfficeBlock", (req, res) => {
 
 
 
-// List (1)Location And Office Names
-router.get("/listLocationAndOfficeName", (req, res) => {
+router.get("/listSiteAndBuildingId", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1432,7 +1697,7 @@ router.get("/listLocationAndOfficeName", (req, res) => {
           var arr = [];
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
             for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-              var obj = docs[0].buildingSites[i].Site[2].OfficeNames[s];
+              var obj = docs[0].buildingSites[i].Site[0].OfficeNames;
               arr.push(obj);
             }
           }
@@ -1448,6 +1713,79 @@ router.get("/listLocationAndOfficeName", (req, res) => {
           res.send(err);
           console.log(err);
         }
+      });
+  }
+});
+
+
+
+
+
+
+
+
+// List (1)Location And Office Names
+router.get("/listLocationAndOfficeName", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
+  if (bName != -1) {
+    Buildingsite.find({
+        locationId: req.headers.buildingid
+      },
+      null, {
+        sort: {
+          'date': -1
+        },
+        limit: 1
+      }, (err, docs) => {
+
+        if (docs[0].locationType == "office") {
+
+          if (!err) {
+            var arr = [];
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
+                var obj = docs[0].buildingSites[i].Site[2].OfficeNames[s];
+                arr.push(obj);
+              }
+            }
+            let toSend = {
+              locationType: docs[0].locationType,
+              officeNames: arr
+            };
+
+            res.json(toSend);
+
+          } else {
+            res.status(400);
+            res.send(err);
+            console.log(err);
+          }
+
+        } else {
+
+          if (!err) {
+            var arr = [];
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              var obj = docs[0].buildingSites[i].Site[0].siteName;
+              arr.push(obj);
+            }
+            let toSend = {
+              locationType: docs[0].locationType,
+              officeNames: arr
+            };
+
+            res.json(toSend);
+
+          } else {
+            res.status(400);
+            res.send(err);
+            console.log(err);
+          }
+
+
+        }
+
       });
   }
 });
@@ -1487,7 +1825,6 @@ router.get("/listBuildingId", (req, res) => {
       });
   }
 });
-
 
 
 
@@ -1705,7 +2042,7 @@ router.post("/createOffice", (req, res) => {
 
 
 //return full list of employess
-router.get("/listAll", (req, res) => {
+router.get("/listAll", authenticateToken, (req, res) => {
   Employee.find((err, docs) => {
     if (!err) {
       console.log("complete doc shown to user");
@@ -1727,7 +2064,7 @@ router.get("/listAll", (req, res) => {
 
 
 // List Approved and Visitor status
-router.get("/listApprovedVisitor", (req, res) => {
+router.get("/listApprovedVisitor", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
 
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
@@ -1737,8 +2074,6 @@ router.get("/listApprovedVisitor", (req, res) => {
       permanent: false,
       locationId: req.headers.buildingid
     }, function(err, docs) {
-      // expiry date
-      // current date
       if (!err) {
         console.log("approved doc shown to user");
         res.json(docs);
@@ -1755,7 +2090,7 @@ router.get("/listApprovedVisitor", (req, res) => {
 
 
 // list Approved and permanent
-router.get("/listApprovedPermanent", (req, res) => {
+router.get("/listApprovedPermanent", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1781,7 +2116,7 @@ router.get("/listApprovedPermanent", (req, res) => {
 
 
 //list all approved users
-router.get("/listApproved", (req, res) => {
+router.get("/listApproved", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   Employee.find({
     locationId: req.headers.buildingid,
@@ -1803,7 +2138,7 @@ router.get("/listApproved", (req, res) => {
 
 
 //list all unapproved  and visitor status users
-router.get("/listArchived", (req, res) => {
+router.get("/listArchived", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1826,7 +2161,7 @@ router.get("/listArchived", (req, res) => {
 
 
 //list all unapproved  and visitor status users
-router.get("/listUnapprovedVisitor", (req, res) => {
+router.get("/listUnapprovedVisitor", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1853,7 +2188,7 @@ router.get("/listUnapprovedVisitor", (req, res) => {
 
 
 // list UnApproved And Permanent
-router.get("/listUnapprovedPermanent", (req, res) => {
+router.get("/listUnapprovedPermanent", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1879,7 +2214,7 @@ router.get("/listUnapprovedPermanent", (req, res) => {
 
 
 // List all Unapproved
-router.get("/listUnapproved", (req, res) => {
+router.get("/listUnapproved", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1904,7 +2239,7 @@ router.get("/listUnapproved", (req, res) => {
 
 
 //delete record
-router.get("/delete/:id", (req, res) => {
+router.get("/delete/:id", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1924,7 +2259,7 @@ router.get("/delete/:id", (req, res) => {
 
 
 //insert new user / update existing user
-router.post("/create", (req, res) => {
+router.post("/create", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1940,49 +2275,178 @@ router.post("/create", (req, res) => {
 });
 
 
+//insert new user / update existing user
+router.post("/approveUser", authenticateToken, (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
+  if (bName != -1) {
+    Employee.update({
+        _id: req.body._id
+      }, {
+        $set: {
+          approval: true
+        }
+      },
+      function(err, result) {
+        if (err) {
+          console.log(err);
+          let message = {
+            message: "could not approve",
+            error: err
+          }
+          res.json(message);
+        } else {
+
+          console.log(result);
+          let mail = req.body.officeEmail;
+          var transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: 'whatsapp2backend@gmail.com',
+              pass: process.env.EMAILPASS
+            }
+          });
+
+          var mailOptions = {
+            from: 'WB_Karthik@gmail.com',
+            to: mail,
+            subject: 'Your building access request has been approved',
+            text: 'You now have access to services in kosmoone.',
+            html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hello ' + req.body.fullName + ', you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
+          };
+
+          transporter.sendMail(mailOptions, function(error, info) {
+            if (error) {
+              console.log(error);
+              res.status(400).json({
+                err: "user was approved but mail was not sent : " + error
+              });
+            } else {
+              console.log('Email sent: ' + info.response);
+              res.json({
+                message: "user was approved and mail was sent"
+              });
+            }
+          });
+
+
+        }
+      }
+    );
+
+
+  }
+});
+
 
 
 
 // insert BULK
-router.post("/createBulk", (req, res) => {
+router.post("/createBulk", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
-    let employeeArray = req.body.arr;
-    for (var i = 0; i < employeeArray.length; i++) {
-      employeeArray[i].buildingName = bName;
-      employeeArray[i].archived = false;
-      employeeArray[i].createdAt = new Date();
-      employeeArray[i].locationId = req.headers.buildingid;
 
 
-      if (employeeArray[i].sessionId == undefined) {
-        if (employeeArray[i].buildingId.length == 0) {
-          employeeArray[i].sessionId = "Not mapped yet";
-        } else {
-          employeeArray[i].sessionId = employeeArray[i].buildingId[0].name;
+    Bids.find({
+      locationId: req.headers.buildingid
+    }).then(docs => {
+      let map = new Map();
+      let emailList = [];
+      for (var i = 0; i < docs.length; i++) {
+        console.log(docs[i].buildingId);
+        map.set(docs[i].buildingId, {
+          name: docs[i].buildingId,
+          localName: docs[i].idName,
+          type: docs[i].buildingType
+        });
+      }
+
+      console.log("bid map: " + map);
+      for (let [key, value] of map) {
+        console.log(key + "  " + JSON.stringify(value))
+      }
+
+
+      let employeeArray = req.body.arr;
+
+      for (var i = 0; i < employeeArray.length; i++) {
+        employeeArray[i].buildingName = bName;
+        employeeArray[i].archived = false;
+        employeeArray[i].createdAt = new Date();
+        employeeArray[i].locationId = req.headers.buildingid;
+        console.log("employeeArray[i].buildingId : " + JSON.stringify(employeeArray[i].buildingId));
+        let buildingIdPairs = [];
+        for (var x = 0; x < employeeArray[i].buildingId.length; x++) {
+          console.log("in : " + JSON.stringify(map.get(employeeArray[i].buildingId[x].trim())));
+          buildingIdPairs.push(map.get(employeeArray[i].buildingId[x].trim()));
         }
-      }
 
-    }
-    console.log("employee Array inserted");
-    console.log(employeeArray);
-    Employee.collection.insert(employeeArray, {
-      ordered: false
-    }, function(
-      err,
-      docs
-    ) {
-      if (err) {
-        console.error(err);
-        res.status(400);
-        res.send(err);
-      } else {
-        res.send("Multiple employees inserted to Collection");
+        employeeArray[i].buildingId = buildingIdPairs;
+        employeeArray[i].calls = {
+          maxCalls: 7,
+          remainingCalls: 7
+        }
+        //    employeeArray[i].buildingId
+        console.log("employeeArray[i].buildingId :" + JSON.stringify(employeeArray[i].buildingId));
+        if (employeeArray[i].officeEmail == undefined || employeeArray[i].officeEmail == "") {
+          employeeArray[i].officeEmail = "----";
+        } else {
+          employeeArray[i].officeEmail = employeeArray[i].officeEmail.trim();
+          if (employeeArray[i].approval) {
+            emailList.push(employeeArray[i].officeEmail);
+          }
+        }
+        if (employeeArray[i].eId == undefined || employeeArray[i].Id == "") {
+          employeeArray[i].eId = "----";
+        }
+
+
+
+        console.log("employeeArray[i].buildingId :" + employeeArray[i]);
+        if (employeeArray[i].sessionId == undefined) {
+          if (employeeArray[i].buildingId.length == 0) {
+            employeeArray[i].sessionId = "sessionId not mapped";
+          } else {
+            employeeArray[i].sessionId = employeeArray[i].buildingId[0].name;
+          }
+        }
+
       }
-    });
+      console.log("employee Array inserted");
+      console.log(emailList);
+      console.log(emailList.join(","));
+      Employee.collection.insertMany(employeeArray, {
+        ordered: true
+      }, function(
+        err,
+        docs
+      ) {
+        if (err) {
+          console.error(err);
+          res.status(400);
+          res.send(err);
+        } else {
+
+          sendMail(req, res, emailList);
+          //res.send("Multiple employees inserted to Collection");
+
+
+
+
+        }
+      });
+
+    }).catch(err => res.status(400).json({
+      err: "" + err
+    }));
+
   }
 });
+
+
+
+
 
 
 
@@ -1991,34 +2455,67 @@ router.post("/createBulk", (req, res) => {
 //check if admin username and password is correct
 router.post("/check", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
-  Admin.find({
-      username: req.body.username,
-      password: req.body.password
+  Admin.findOne({
+      username: req.body.username
     },
-    (err, docs) => {
-      if (err) {
-        res.status(400);
-        res.send(err);
-      } else if (docs[0] == undefined) {
-        res.status(400);
-        res.send("user not found");
-      } else {
-        console.log(docs[0]);
+    async (err, docs) => {
+      try {
+        if (await bcrypt.compare(req.body.password.toString(), docs.password)) {
+          console.log("user is valid");
+          if (err) {
+            res.status(400);
+            res.send(err);
+          } else if (docs == undefined) {
+            res.status(400);
+            res.send("user not found");
+          } else {
+            var validity = {
+              validity: true,
+              username: req.body.username,
+              locationtype: docs.locationType,
+              locationname: docs.locationName,
+              locationid: docs.locationId,
+              serviceList: docs.serviceList
+            };
 
-        var valid = {
-          validity: true,
-          locationtype: docs[0].locationType,
-          locationname: docs[0].locationName,
-          locationid: docs[0].locationId,
-          serviceList: docs[0].serviceList
-        };
+            let accessToken = generateAccessToken(validity);
+            let refreshToken = jwt.sign(validity, process.env.REFRESH_TOKEN_SECRET);
 
-        res.json(valid);
+            console.log({
+              accessToken: accessToken,
+              refreshToken: refreshToken
+            });
+
+            res.json({
+              accessToken: accessToken,
+              refreshToken: refreshToken
+            });
+            //  res.json(validity);
+          }
+        } else {
+          res.status(400);
+          res.send("username or password is incorrect");
+        }
+      } catch (err) {
+        console.log(err);
+        res.status(400);
+        res.json({
+          err: "user not found"
+        });
       }
+
+
     }
   );
 });
 
+
+
+function generateAccessToken(payload) {
+  return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: '1d'
+  });
+}
 
 
 //check if admin username and password is correct
@@ -2101,31 +2598,9 @@ router.post("/validatePhone", (req, res) => {
 });
 
 
-
-
-
-router.post("/test123", (req, res) => {
-  res.set("Access-Control-Allow-Headers", "*");
-  Bids.find({
-    buildingId: ["bhi0", "bhi2"]
-  }).then(bidPair => {
-    console.log(bidPair);
-    let arr = [];
-    for (var i = 0; i < bidPair.length; i++) {
-      let temp = {
-        name: bidPair[i].buildingId,
-        localName: bidPair[i].idName
-      }
-      arr.push(temp);
-    }
-    let resp = {}
-    resp.buildingId = arr;
-    res.send(resp);
-  }).catch(error => {
-    res.status(400);
-    res.send(error);
-  })
-
+router.post('/testToken', authenticateToken, (req, res) => {
+  console.log("username  " + req.user.username);
+  res.send("you are autharised");
 });
 
 
@@ -2171,7 +2646,8 @@ function insertRecord(req, res) {
     for (var i = 0; i < bidPair.length; i++) {
       let temp = {
         name: bidPair[i].buildingId,
-        localName: bidPair[i].idName
+        localName: bidPair[i].idName,
+        type: "LCE"
       }
       idNamePair.push(temp);
     }
@@ -2181,7 +2657,7 @@ function insertRecord(req, res) {
       sessionIdHolder = req.body.sessionId;
     } else {
       if (req.body.buildingId.length == 0) {
-        sessionIdHolder = "Not mapped yet";
+        sessionIdHolder = "sessionId not mapped";
       } else {
         sessionIdHolder = req.body.buildingId[0].name;
       }
@@ -2203,6 +2679,10 @@ function insertRecord(req, res) {
     employee.locationId = req.headers.buildingid;
     employee.buildingName = req.body.buildingName;
     employee.createdAt = new Date();
+    employee.calls = {
+      maxCalls: 7,
+      remainingCalls: 7
+    }
 
     let isValid = true;
     let hardExpiryDate = new Date();
@@ -2259,7 +2739,8 @@ function updateRecord(req, res) {
     for (var i = 0; i < bidPair.length; i++) {
       let temp = {
         name: bidPair[i].buildingId,
-        localName: bidPair[i].idName
+        localName: bidPair[i].idName,
+        type: "LCE"
       }
       idNamePair.push(temp);
 
@@ -2268,10 +2749,14 @@ function updateRecord(req, res) {
     if (validateEmail(req.body.officeEmail)) {
       if (req.body.sessionId == undefined) {
         if (req.body.buildingId.length == 0) {
-          req.body.sessionId = "Not mapped yet";
+          req.body.sessionId = "sessionId not mapped";
         } else {
           req.body.sessionId = req.body.buildingId[0].name;
         }
+      }
+      req.body.calls = {
+        maxCalls: 7,
+        remainingCalls: 7
       }
 
       Employee.findOneAndUpdate({
@@ -2481,6 +2966,67 @@ function validateEmail(email) {
 
 
 
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token == null) {
+    return res.status(403).json({
+      err: "token is null"
+    });
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) {
+      console.log("mp2");
+      return res.status(403).json({
+        err: "token verification failed"
+      })
+    } else {
+      console.log("mp3");
+      console.log(user);
+      req.user = user;
+      next();
+    }
+  })
+
+}
+
+
+
+function sendMail(req, res, mail) {
+  var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'whatsapp2backend@gmail.com',
+      pass: process.env.EMAILPASS
+    }
+  });
+
+  var mailOptions = {
+    from: 'WB_Karthik@gmail.com',
+    to: mail,
+    subject: 'Your building access request has been approved',
+    text: 'You now have access to services in kosmoone.',
+    html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hello ' + req.body.fullName + ', you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
+  };
+
+  transporter.sendMail(mailOptions, function(error, info) {
+    if (error) {
+      console.log(error);
+      res.status(400).json({
+        err: error
+      });
+    } else {
+      console.log('Email sent: ' + info.response);
+      res.json({
+        message: "mail sent"
+      });
+    }
+  });
+}
+
+
+
 function inValidateEmployee() {
   console.log("interval Called");
   let currentDate = new Date();
@@ -2512,71 +3058,3 @@ setInterval(inValidateEmployee, 3600000);
 
 
 module.exports = router;
-
-
-
-
-
-// uncoment to inspect result
-//    util.inspect(result, {
-//      showHidden: false,
-//      depth: null
-//    })
-
-/*
-console.log("date below");
-let dat = new Date();
-console.log(dat);
-dat.setDate(dat.getDate() + 365);
-console.log(dat);
-console.log(dat > new Date());
-*/
-/*
-function inValidateEmployee() {
-  console.log("interval Called");
-  Employee.find({
-    approval: true,
-    permanent: false
-  }, function(err, docs) {
-    if (!err) {
-      for (var i = 0; i < docs.length; i++) {
-        let employeeCreatedAt = docs[i].createdAt;
-        let current = new Date();
-        if ((current - employeeCreatedAt) < 86500000) {
-          console.log(" employee is valid " + (current - employeeCreatedAt))
-        } else {
-          console.log(" employee is not valid anymore");
-          let newBody = docs[i];
-          newBody.approval = false;
-          if (newBody.body != null) {
-            updateRecordInterval(newBody);
-          }
-        }
-      }
-    } else {
-      console.log(err);
-    }
-  });
-}
-setInterval(inValidateEmployee, 3600000);
-
-
-function inValidateEmployee() {
-  console.log("interval Called");
-  Employee.updateMany({
-    approval: true,
-    permanent: false,
-    archived: false,
-    $where: function() {
-      return this.createdAt > this.expiresAt
-    }
-  }, {
-    $set: {
-      archived: true
-    }
-  })
-}
-
-setInterval(inValidateEmployee, 360000);
-
-*/
