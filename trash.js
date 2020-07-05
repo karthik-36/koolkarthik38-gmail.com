@@ -42,6 +42,26 @@ function inValidateEmployee() {
 setInterval(inValidateEmployee, 3600000);
 
 
+/*
+let options = {
+  tls: true,
+  tlsCAFile: `/certificate.txt`,
+  useUnifiedTopology: true
+};
+mongoose.connect(process.env.MONGOCREDS, options, {
+  useNewUrlParser: true
+}, (err) => {
+  if (!err) {
+    console.log("Connection to db successful");
+  } else {
+    console.log("DB error : " + err);
+  }
+});
+*/
+
+
+//const MongoClient = require("mongodb").MongoClient;
+
 function inValidateEmployee() {
   console.log("interval Called");
   Employee.updateMany({
@@ -111,34 +131,34 @@ router.post("/addAdminHash", async (req, res) => {
       }
     });
     */
-} else {
-  console.log("yes id");
-  newAdmin._id = req.body._id;
+  } else {
+    console.log("yes id");
+    newAdmin._id = req.body._id;
 
-  /*
-  Admin.findOneAndUpdate({
-    _id: req.body._id
-  }, newAdmin, {
-    new: true
-  }, (err, doc) => {
-    if (!err) {
-      let message = {
-        message: "record updated",
-        bodyDetail: req.body
+    /*
+    Admin.findOneAndUpdate({
+      _id: req.body._id
+    }, newAdmin, {
+      new: true
+    }, (err, doc) => {
+      if (!err) {
+        let message = {
+          message: "record updated",
+          bodyDetail: req.body
+        }
+        res.json(message);
+      } else {
+        res.status(400);
+        let message = {
+          message: "record update failed",
+          errMsg: err
+        }
+        console.log("Error during record update : " + err);
+        res.send(message);
       }
-      res.json(message);
-    } else {
-      res.status(400);
-      let message = {
-        message: "record update failed",
-        errMsg: err
-      }
-      console.log("Error during record update : " + err);
-      res.send(message);
-    }
-  });
-  */
-}
+    });
+    */
+  }
 });
 
 

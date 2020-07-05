@@ -1,6 +1,7 @@
 console.log("Server Start");
 const express = require('express');
 const bodyparser = require('body-parser');
+const logger = require('./helperFunctions/winstonLogger');
 require('./models/db');
 require('./models/employee.model');
 require('./models/admin.model');
@@ -26,4 +27,4 @@ app.use('/admin', adminController);
 app.use('/superAdmin', superAdminController);
 //app.use('/users' , require('./routes/users'))
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, console.log('Server started on port yey ' + PORT));
+app.listen(PORT, logger.log('info', "server connected to port " + PORT));

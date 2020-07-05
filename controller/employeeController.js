@@ -13,6 +13,7 @@ var bcrypt = require('bcryptjs');
 var nodemailer = require('nodemailer');
 var cryptoJS = require("crypto-js");
 const jwt = require('jsonwebtoken');
+const sgMail = require('@sendgrid/mail');
 
 //Dncrypt
 
@@ -1097,7 +1098,7 @@ router.post("/AddSiteByName", (req, res) => {
 
 
 
-
+/*
 router.post("/userEmailSmtp", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
@@ -1141,8 +1142,32 @@ router.post("/userEmailSmtp", (req, res) => {
 
   }
 });
+*/
 
 
+
+router.post("/userEmailSmtp", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log(process.env.SENDGRID_API_KEY);
+  const msg = {
+    to: 'karthik2singh@gmail.com',
+    from: 'karthik.rsingh@kone.com',
+    subject: 'Sending with Twilio SendGrid is Fun',
+    text: 'and easy to do anywhere, even with Node.js',
+    html: '<strong>and easy to do anywhere, even with Node.js</strong>',
+  };
+  //sgMail.send(msg);
+  sgMail.send(msg).then((x) => {
+    res.send("succ : " + x);
+    console.log("succ : " + x);
+  }).catch((error) => {
+    console.log('error', error);
+    res.send(error);
+  });
+
+  //  sendMail(req, res, 'karthik2singh@gmail.com', "kosmoone");
+});
 
 
 
@@ -2371,16 +2396,26 @@ router.post("/createBulk", authenticateToken, (req, res) => {
       let employeeArray = req.body.arr;
 
       for (var i = 0; i < employeeArray.length; i++) {
-        employeeArray[i].buildingName = bName;
+        employeeArray[i].buildingName = bName.trim();
+        employeeArray[i].fullName = employeeArray[i].fullName.trim();
         employeeArray[i].archived = false;
         employeeArray[i].createdAt = new Date();
         employeeArray[i].locationId = req.headers.buildingid;
+        employeeArray[i].phone = employeeArray[i].phone.toString();
         console.log("employeeArray[i].buildingId : " + JSON.stringify(employeeArray[i].buildingId));
         let buildingIdPairs = [];
         for (var x = 0; x < employeeArray[i].buildingId.length; x++) {
           console.log("in : " + JSON.stringify(map.get(employeeArray[i].buildingId[x].trim())));
           buildingIdPairs.push(map.get(employeeArray[i].buildingId[x].trim()));
         }
+
+
+        let newSites = [];
+        for (var x = 0; x < employeeArray[i].sites.length; x++) {
+          newSites.push(employeeArray[i].sites[x].trim());
+        }
+        employeeArray[i].sites = newSites;
+
 
         employeeArray[i].buildingId = buildingIdPairs;
         employeeArray[i].calls = {
@@ -2428,8 +2463,10 @@ router.post("/createBulk", authenticateToken, (req, res) => {
           res.send(err);
         } else {
 
-          sendMail(req, res, emailList);
-          //res.send("Multiple employees inserted to Collection");
+          //    sendMail(req, res, emailList);
+          res.json({
+            message: "multiple docs inserted"
+          });
 
 
 
@@ -2881,12 +2918,6 @@ function addSite(id, newDoc, res) {
   );
 }
 
-// text => base64
-//buildingname:buildingtype:buildingcountry:buildingcity:building
-//function base_64(str1, str2) {
-//  return Buffer.from((str1 + ":" + str2)).toString('base64');
-//}
-
 function base_64(buildingName, locationType, buildingCountry, buildingCity, postalCode) {
   return Buffer.from(buildingName + ":" + locationType + ":" + buildingCountry + ":" + buildingCity + ":" + postalCode + ":" + new Date().valueOf()).toString('base64');
 }
@@ -2993,7 +3024,7 @@ function authenticateToken(req, res, next) {
 
 
 
-function sendMail(req, res, mail) {
+function sendMail(req, res, mail, bName) {
   var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -3003,11 +3034,11 @@ function sendMail(req, res, mail) {
   });
 
   var mailOptions = {
-    from: 'WB_Karthik@gmail.com',
+    from: 'Fred Foo 👥 <foo@blurdybloop.com>',
     to: mail,
     subject: 'Your building access request has been approved',
     text: 'You now have access to services in kosmoone.',
-    html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hello ' + req.body.fullName + ', you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
+    html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hi, you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
   };
 
   transporter.sendMail(mailOptions, function(error, info) {
