@@ -18,6 +18,10 @@ var calls = new mongoose.Schema({
 
 
 var buildingIdPair = new mongoose.Schema({
+  _id: {
+    type: mongoose.Types.ObjectId,
+    required: "_id is required"
+  },
   name: {
     type: String,
     required: " building id is required"

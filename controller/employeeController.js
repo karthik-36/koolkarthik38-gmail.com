@@ -23,68 +23,74 @@ const sgMail = require('@sendgrid/mail');
 router.post("/getBuildingElement", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   Buildingsite.find({
-    buildingName: req.body.buildingName
+    locationId: req.headers.buildingid
   }).limit(1).then(bdocs => {
 
-    let mappedSites = bdocs[0].buildingSites;
-    let buildingSite = [];
-    for (var i = 0; i < bdocs[0].buildingSites.length; i++) {
-      buildingSite.push(bdocs[0].buildingSites[i].Site[0].siteName);
-    }
-
-    let listDetails = {
-      _id: bdocs[0]._id,
-      locationType: bdocs[0].locationType,
-      buildingName: bdocs[0].buildingName,
-      country: bdocs[0].country,
-      city: bdocs[0].city,
-      postalCode: bdocs[0].postalCode,
-      locationId: bdocs[0].locationId,
-      countryCode: bdocs[0].countryCode,
-      buildingSites: buildingSite
-    };
-
-    Offices.find({
-      buildingName: req.body.buildingName
-    }).then(offices => {
-      let newOffices = [];
-      for (var x = 0; x < offices.length; x++) {
-        newOffices.push(offices[x].officeName);
+    if (bdocs[0] != null) {
+      let mappedSites = bdocs[0].buildingSites;
+      let buildingSite = [];
+      for (var i = 0; i < bdocs[0].buildingSites.length; i++) {
+        buildingSite.push(bdocs[0].buildingSites[i].siteName);
       }
-      return newOffices;
 
-    }).then((x) => {
-      listDetails.officeNames = x;
-      let pair = [];
-      Bids.find({
-        buildingName: req.body.buildingName
-      }).then(BidPair => {
-        for (var i = 0; i < BidPair.length; i++) {
-          pair.push([BidPair[i].idName, BidPair[i].buildingId, BidPair[i].buildingType]);
+      let listDetails = {
+        _id: bdocs[0]._id,
+        originalName: bdocs[0].originalName,
+        locationType: bdocs[0].locationType,
+        buildingName: bdocs[0].buildingName,
+        country: bdocs[0].country,
+        city: bdocs[0].city,
+        postalCode: bdocs[0].postalCode,
+        locationId: bdocs[0].locationId,
+        countryCode: bdocs[0].countryCode,
+        buildingSites: buildingSite
+      };
+
+      Offices.find({
+        locationId: req.headers.buildingid
+      }).then(offices => {
+        let newOffices = [];
+        for (var x = 0; x < offices.length; x++) {
+          newOffices.push(offices[x].officeName);
         }
-        return pair;
-      }).then((pair) => {
-        listDetails.bIdPairs = pair;
-        let jarr = [];
-        jarr.push(listDetails);
-        Admin.find({
-          locationName: req.body.buildingName
-        }).then(docs => {
-          jarr.push(mappedSites);
-          jarr.push(docs);
-          res.json(jarr);
+        return newOffices;
+
+      }).then((x) => {
+        listDetails.officeNames = x;
+        let pair = [];
+        Bids.find({
+          locationId: req.headers.buildingid
+        }).then(BidPair => {
+          for (var i = 0; i < BidPair.length; i++) {
+            pair.push([BidPair[i].idName, BidPair[i].buildingId, BidPair[i].buildingType]);
+          }
+          return pair;
+        }).then((pair) => {
+          listDetails.bIdPairs = pair;
+          let jarr = [];
+          jarr.push(listDetails);
+          Admin.find({
+            locationId: req.headers.buildingid
+          }).then(docs => {
+            jarr.push(mappedSites);
+            jarr.push(docs);
+            res.json(jarr);
+          }).catch(err => {
+            res.status(400);
+            res.send("Admin find error : " + err);
+          });
         }).catch(err => {
           res.status(400);
-          res.send("Admin find error : " + err);
+          res.send("buildingId pair fetch error : " + err);
         });
       }).catch(err => {
         res.status(400);
-        res.send("buildingId pair fetch error : " + err);
+        res.send("Office fetch error : " + err);
       });
-    }).catch(err => {
-      res.status(400);
-      res.send("Office fetch error : " + err);
-    });
+
+    } else {
+      res.status(400).send("building name not found");
+    }
   }).catch(err => {
     res.status(400);
     res.send("Building id fetch error :" + err);
@@ -102,12 +108,16 @@ router.post("/getBuildingElement", (req, res) => {
 // partial/full name search
 router.post("/searchBuilding", (req, res) => {
 
-  Buildingsite.find({}).select('buildingName').then(bdocs => {
+  Buildingsite.find({}).select('buildingName originalName locationId').then(bdocs => {
     let jarr = [];
     let st = req.body.searchTerm;
     for (var i = 0; i < bdocs.length; i++) {
       if (bdocs[i].buildingName.includes(st)) {
-        jarr.push(bdocs[i].buildingName);
+        jarr.push({
+          buildingName: bdocs[i].buildingName,
+          originalName: bdocs[i].buildingName,
+          locationId: bdocs[i].locationId
+        });
       }
     }
 
@@ -504,7 +514,7 @@ router.get("/buildingDetailsUnmapped", (req, res) => {
         var newOffices = [];
 
         for (var i = 0; i < docs.buildingSites.length; i++) {
-          sites1 = sites1.concat(docs.buildingSites[i].Site[0].siteName);
+          sites1 = sites1.concat(docs.buildingSites[i].siteName);
         }
         console.log(sites1);
         Bids.find({
@@ -603,16 +613,9 @@ router.post("/addBuilding", (req, res) => {
         console.log("all sites are unique");
         for (i = 0; i < req.body.Sites.length; i++) {
           let bsite = {
-            Site: [{
-                siteName: req.body.Sites[i]
-              },
-              {
-                buildingId: []
-              },
-              {
-                OfficeNames: []
-              }
-            ]
+            siteName: req.body.Sites[i],
+            buildingId: [],
+            OfficeNames: []
           };
           arrSites.push(bsite);
         }
@@ -620,6 +623,7 @@ router.post("/addBuilding", (req, res) => {
 
 
         var newBuilding = new Buildingsite();
+        newBuilding.originalName = req.body.originalName;
         newBuilding.country = req.body.country;
         newBuilding.city = req.body.city;
         newBuilding.postalCode = req.body.postalCode;
@@ -757,23 +761,16 @@ router.post("/updateBuilding", (req, res) => {
     //  let arrSites = [];
     for (i = 0; i < req.body.Sites.length; i++) {
       let siteInstance = {
-        Site: [{
-            siteName: req.body.Sites[i]
-          },
-          {
-            buildingId: []
-          },
-          {
-            OfficeNames: []
-          }
-        ]
+        siteName: req.body.Sites[i],
+        buildingId: [],
+        OfficeNames: []
       };
 
       let overlap = false;
       console.log(arrSites);
       for (var s = 0; s < arrSites.length; s++) {
-        console.log(siteInstance.Site[0].siteName + "    " + arrSites[s].Site[0].siteName);
-        if (siteInstance.Site[0].siteName == arrSites[s].Site[0].siteName) {
+        console.log(siteInstance.siteName + "    " + arrSites[s].siteName);
+        if (siteInstance.siteName == arrSites[s].siteName) {
           overlap = true;
           break;
         }
@@ -953,27 +950,39 @@ router.post("/updateBuilding", (req, res) => {
 router.post("/AddSiteByName", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let buildingIdList = [];
-  let localList = req.body.Site[1].buildingId;
+  let localList = req.body.buildingId;
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
     console.log("bName  : " + bName + "  " + " Local list " + localList);
+    //    let localNames = [];
+    //    for (var lp = 0; lp < localList.length; lp++) {
+    //      localNames.push(localList.buildingId);
+    //    }
     Bids.find({
       locationId: req.headers.buildingid,
       buildingId: localList
     }).then(docs => {
       for (var i = 0; i < docs.length; i++) {
-        buildingIdList.push(docs[i].buildingId);
+        let temp = {
+          _id: docs[i]._id,
+          buildingId: docs[i].buildingId,
+          buildingType: docs[i].buildingType,
+          idName: docs[i].idName
+        }
+        //  buildingIdList.push(docs[i].buildingId);
+        buildingIdList.push(temp);
       }
       console.log(buildingIdList);
 
       if (buildingIdList.length == 0) {
         throw new Error("local name => buildingId   pair not found");
+        res.status(400).send("local name => buildingId   pair not found");
       }
       return buildingIdList;
 
     }).then(buildingIdList => {
 
-      req.body.Site[1].buildingId = buildingIdList;
+      req.body.buildingId = buildingIdList;
       Buildingsite.find({
           locationId: req.headers.buildingid
         },
@@ -991,10 +1000,10 @@ router.post("/AddSiteByName", (req, res) => {
               var siteExists = false;
               siteArr = [];
               for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
+                siteArr = siteArr.concat(docs[0].buildingSites[i].siteName);
               }
 
-              if (siteArr.includes(req.body.Site[0].siteName)) {
+              if (siteArr.includes(req.body.siteName)) {
                 siteExists = true;
               }
 
@@ -1005,13 +1014,13 @@ router.post("/AddSiteByName", (req, res) => {
                 var index;
 
 
-                newBuildingID = req.body.Site[1].buildingId;
-                newOfficeName = req.body.Site[2].OfficeNames;
+                newBuildingID = req.body.buildingId;
+                newOfficeName = req.body.OfficeNames;
 
                 var earr;
 
                 for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                  if (docs[0].buildingSites[i].Site[0].siteName == req.body.Site[0].siteName) {
+                  if (docs[0].buildingSites[i].siteName == req.body.siteName) {
                     index = i;
                     earr = docs[0].buildingSites[i];
                     break;
@@ -1021,8 +1030,8 @@ router.post("/AddSiteByName", (req, res) => {
 
                 let buildingIdOriginal = [];
                 for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                  if (docs[0].buildingSites[i].Site[0].siteName != req.body.Site[0].siteName) {
-                    buildingIdOriginal = buildingIdOriginal.concat(docs[0].buildingSites[i].Site[1].buildingId);
+                  if (docs[0].buildingSites[i].siteName != req.body.siteName) {
+                    buildingIdOriginal = buildingIdOriginal.concat(docs[0].buildingSites[i].buildingId);
                   }
                 }
 
@@ -1032,17 +1041,17 @@ router.post("/AddSiteByName", (req, res) => {
 
                 let overlap = false;
                 for (var i = 0; i < newBuildingID.length; i++) {
-                  if (bidSet.has(newBuildingID[i])) {
+                  if (bidSet.has(newBuildingID[i].buildingId)) {
                     overlap = true;
                     res.status(400);
-                    res.send(newBuildingID[i] + " is overlapping with another site.");
+                    res.send(newBuildingID[i].buildingId + " is overlapping with another site.");
                     break;
                   }
                 }
 
                 if (!overlap) {
-                  earr.Site[1].buildingId = newBuildingID;
-                  earr.Site[2].OfficeNames = newOfficeName;
+                  earr.buildingId = newBuildingID;
+                  earr.OfficeNames = newOfficeName;
                   var arr = [];
                   arr = docs[0].buildingSites;
                   arr[index] = earr;
@@ -1054,11 +1063,11 @@ router.post("/AddSiteByName", (req, res) => {
                 var bidArr = [];
                 var flag = true;
                 for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                  bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+                  bidArr = bidArr.concat(docs[0].buildingSites[i].buildingId);
                 }
 
-                for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
-                  if (bidArr.includes(req.body.Site[1].buildingId[i])) {
+                for (var i = 0; i < req.body.buildingId.length; i++) {
+                  if (bidArr.includes(req.body.buildingId[i])) {
                     flag = false;
                     break;
                   }
@@ -1250,7 +1259,7 @@ router.post("/deleteSite", (req, res) => {
         } else {
           var index = -1;
           for (var i = 0; i < docs.buildingSites.length; i++) {
-            if (docs.buildingSites[i].Site[0].siteName == req.body.siteName) {
+            if (docs.buildingSites[i].siteName == req.body.siteName) {
               index = i;
               break;
             }
@@ -1302,10 +1311,10 @@ router.post("/addSite", (req, res) => {
             var siteExists = false;
             siteArr = [];
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              siteArr = siteArr.concat(docs[0].buildingSites[i].Site[0].siteName);
+              siteArr = siteArr.concat(docs[0].buildingSites[i].siteName);
             }
 
-            if (siteArr.includes(req.body.Site[0].siteName)) {
+            if (siteArr.includes(req.body.siteName)) {
               siteExists = true;
             }
 
@@ -1314,14 +1323,14 @@ router.post("/addSite", (req, res) => {
               var newBuildingID = new Set();
               var newOfficeName = new Set();
               var index;
-              newBuildingID = req.body.Site[1].buildingId;
-              newOfficeName = req.body.Site[2].OfficeNames;
+              newBuildingID = req.body.buildingId;
+              newOfficeName = req.body.OfficeNames;
 
               var earr;
               for (var i = 0; i < docs[0].buildingSites.length; i++) {
                 if (
-                  docs[0].buildingSites[i].Site[0].siteName ==
-                  req.body.Site[0].siteName
+                  docs[0].buildingSites[i].siteName ==
+                  req.body.siteName
                 ) {
                   index = i;
                   earr = docs[0].buildingSites[i];
@@ -1330,15 +1339,15 @@ router.post("/addSite", (req, res) => {
               }
 
 
-              earr.Site[1].buildingId = earr.Site[1].buildingId.concat(
+              earr.buildingId = earr.buildingId.concat(
                 newBuildingID
               );
-              earr.Site[2].OfficeNames = earr.Site[2].OfficeNames.concat(
+              earr.OfficeNames = earr.OfficeNames.concat(
                 newOfficeName
               );
 
-              earr.Site[1].buildingId = [...new Set(earr.Site[1].buildingId)];
-              earr.Site[2].OfficeNames = [...new Set(earr.Site[2].OfficeNames)];
+              earr.buildingId = [...new Set(earr.buildingId)];
+              earr.OfficeNames = [...new Set(earr.OfficeNames)];
               //////// Replacement commeth
               var arr = [];
               arr = docs[0].buildingSites;
@@ -1350,12 +1359,12 @@ router.post("/addSite", (req, res) => {
               var bidArr = [];
               var flag = true;
               for (var i = 0; i < docs[0].buildingSites.length; i++) {
-                bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+                bidArr = bidArr.concat(docs[0].buildingSites[i].buildingId);
               }
 
 
-              for (var i = 0; i < req.body.Site[1].buildingId.length; i++) {
-                if (bidArr.includes(req.body.Site[1].buildingId[i])) {
+              for (var i = 0; i < req.body.buildingId.length; i++) {
+                if (bidArr.includes(req.body.buildingId[i])) {
                   flag = false;
                   break;
                 }
@@ -1423,11 +1432,11 @@ router.post("/Office", (req, res) => {
         if (!err) {
           var arr = [];
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-              if (docs[0].buildingSites[i].Site[2].OfficeNames[s] == officeName) {
+            for (var s = 0; s < docs[0].buildingSites[i].OfficeNames.length; s++) {
+              if (docs[0].buildingSites[i].OfficeNames[s] == officeName) {
                 var obj = {
-                  Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
-                  Office_BuildingAccess: docs[0].buildingSites[i].Site[1].buildingId
+                  Office_SiteAccess: docs[0].buildingSites[i].siteName,
+                  Office_BuildingAccess: docs[0].buildingSites[i].buildingId
                 };
                 arr.push(obj);
               }
@@ -1467,16 +1476,44 @@ router.get("/listOfficeId", (req, res) => {
 
         if (docs[0].locationType == "office") {
 
+          let finalArr = [];
+          for (var i = 0; i < docs[0].buildingSites.length; i++) {
+
+            let pairs = [];
+            console.log(docs[0].buildingSites[i]);
+            for (var s = 0; s < docs[0].buildingSites[i].buildingId.length; s++) {
+              let element = [docs[0].buildingSites[i].buildingId[s].buildingId, docs[0].buildingSites[i].buildingId[s].idName];
+              console.log("element : " + element);
+              pairs.push(element);
+            }
+
+            for (var s = 0; s < docs[0].buildingSites[i].OfficeNames.length; s++) {
+
+              let obj = {
+                OfficeName: docs[0].buildingSites[i].OfficeNames[s],
+                Office_SiteAccess: docs[0].buildingSites[i].siteName,
+                Office_LocalName: pairs
+              }
+              finalArr.push(obj);
+            }
+          }
+
+          res.json(finalArr);
+          /*
 
           if (!err) {
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              console.log(docs[0].buildingSites[i].Site[1].buildingId);
-              arrbid = arrbid.concat(docs[0].buildingSites[i].Site[1].buildingId);
-              buildingIdList = (docs[0].buildingSites[i].Site[1].buildingId);
+              console.log(docs[0].buildingSites[i].buildingId);
+              let siteBidNames = [];
+              for (var t = 0; t < docs[0].buildingSites[i].buildingId.length; t++) {
+                siteBidNames.push(docs[0].buildingSites[i].buildingId.buildingId);
+              }
+              arrbid = arrbid.concat(siteBidNames);
+              buildingIdList = (docs[0].buildingSites[i].buildingId);
             }
 
 
-            console.log(arrbid)
+            console.log("arrbid : " arrbid);
             let pair = [];
             Bids.find({
               locationId: req.headers.buildingid,
@@ -1503,13 +1540,13 @@ router.get("/listOfficeId", (req, res) => {
               for (var i = 0; i < docs[0].buildingSites.length; i++) {
 
 
-                for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-                  console.log(docs[0].buildingSites[i].Site[1].buildingId);
+                for (var s = 0; s < docs[0].buildingSites[i].OfficeNames.length; s++) {
+                  console.log(docs[0].buildingSites[i].buildingId);
                   let finalPair = [];
 
-                  for (var u = 0; u < docs[0].buildingSites[i].Site[1].buildingId.length; u++) {
+                  for (var u = 0; u < docs[0].buildingSites[i].buildingId.length; u++) {
                     for (var x = 0; x < pair.length; x++) {
-                      if (pair[x][0] == docs[0].buildingSites[i].Site[1].buildingId[u]) {
+                      if (pair[x][0] == docs[0].buildingSites[i].buildingId[u].buildingId) {
                         finalPair.push(pair[x]);
                         break;
                       }
@@ -1518,8 +1555,8 @@ router.get("/listOfficeId", (req, res) => {
 
 
                   var obj = {
-                    OfficeName: docs[0].buildingSites[i].Site[2].OfficeNames[s],
-                    Office_SiteAccess: docs[0].buildingSites[i].Site[0].siteName,
+                    OfficeName: docs[0].buildingSites[i].OfficeNames[s],
+                    Office_SiteAccess: docs[0].buildingSites[i].siteName,
                     Office_LocalName: finalPair
                   };
                   arr.push(obj);
@@ -1535,59 +1572,82 @@ router.get("/listOfficeId", (req, res) => {
             console.log(err);
           }
 
+          */
+
         } else {
           if (!err) {
+
+            let finalArr = [];
+
+            for (var i = 0; i < docs[0].buildingSites.length; i++) {
+              let pairs = [];
+              for (var s = 0; s < docs[0].buildingSites[i].buildingId.length; s++) {
+                let element = [docs[0].buildingSites[i].buildingId[s].buildingId, docs[0].buildingSites[i].buildingId[s].idName];
+                pairs.push(element);
+              }
+
+              let obj = {
+                OfficeName: docs[0].buildingSites[i].siteName,
+                Office_SiteAccess: docs[0].buildingSites[i].siteName,
+                Office_LocalName: pairs
+              }
+              finalArr.push(obj);
+            }
+
+            res.json(finalArr);
+            /*
 
             console.log(docs[0])
             let bidArr = [];
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              bidArr = bidArr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+              let siteBidNames = [];
+              for (var t = 0; t < docs[0].buildingSites[i].buildingId.length; t++) {
+                siteBidNames.push(docs[0].buildingSites[i].buildingId[t].buildingId);
+              }
+              bidArr = bidArr.concat(siteBidNames);
             }
 
 
             Bids.find({
-              locationId: req.headers.buildingid,
-              buildingId: bidArr
-            }).then(bds => {
+                locationId: req.headers.buildingid,
+                buildingId: bidArr
+              }).then(bds => {
 
-              console.log(bds)
-              let map = new Map();
-              for (var s = 0; s < bds.length; s++) {
-                map.set(bds[s].buildingId, bds[s].idName);
-              }
-              //  res.json({
-              //    bidArr: bds
-              //  });
-              console.log(map);
-
-
-
-              let finalArr = [];
-              for (var s = 0; s < docs[0].buildingSites.length; s++) {
-
-                let pairs = [];
-                for (var x = 0; x < docs[0].buildingSites[s].Site[1].buildingId.length; x++) {
-                  let element = [docs[0].buildingSites[s].Site[1].buildingId[x], map.get(docs[0].buildingSites[s].Site[1].buildingId[x])];
-                  pairs.push(element);
-                }
-                //    console.log(pairs);
-
-                let obj = {
-                  OfficeName: docs[0].buildingSites[s].Site[0].siteName,
-                  Office_SiteAccess: docs[0].buildingSites[s].Site[0].siteName,
-                  Office_LocalName: pairs
+                console.log(bds)
+                let map = new Map();
+                for (var s = 0; s < bds.length; s++) {
+                  map.set(bds[s].buildingId, bds[s].idName);
                 }
 
-                finalArr.push(obj);
-              }
+                console.log(map);
+                let finalArr = [];
+                for (var s = 0; s < docs[0].buildingSites.length; s++) {
 
-              res.json(finalArr);
+                  let pairs = [];
+                  for (var x = 0; x < docs[0].buildingSites[s].buildingId.length; x++) {
+                    let element = [docs[0].buildingSites[s].buildingId[x].buildingId, map.get(docs[0].buildingSites[s].buildingId[x].buildingId)];
+                    pairs.push(element);
+                  }
+                  //    console.log(pairs);
 
-            })
-            //.catch(err => res.status(400).json({
-            //  error: "error is : " + err
-            //}));
+                  let obj = {
+                    OfficeName: docs[0].buildingSites[s].siteName,
+                    Office_SiteAccess: docs[0].buildingSites[s].siteName,
+                    Office_LocalName: pairs
+                  }
 
+                  finalArr.push(obj);
+                }
+
+                res.json(finalArr);
+
+              })
+              .catch(err => res.status(400).json({
+                error: "error is : " + err
+              }));
+
+
+*/
           } else {
             res.status(400).json({
               error: err
@@ -1621,13 +1681,13 @@ router.get("/listOfficeBlock", (req, res) => {
           let officeBuildingId = new Map();
           let officeSitesId = new Map();
           for (var i = 0; i < docs.buildingSites.length; i++) {
-            for (var s = 0; s < docs.buildingSites[i].Site[2].OfficeNames.length; s++) {
-              if (officeBuildingId.has(docs.buildingSites[i].Site[2].OfficeNames[s])) {
-                officeBuildingId.set(docs.buildingSites[i].Site[2].OfficeNames[s], officeBuildingId.get(docs.buildingSites[i].Site[2].OfficeNames[s]).concat(docs.buildingSites[i].Site[1].buildingId));
-                officeSitesId.set(docs.buildingSites[i].Site[2].OfficeNames[s], officeSitesId.get(docs.buildingSites[i].Site[2].OfficeNames[s]).concat(docs.buildingSites[i].Site[0].siteName));
+            for (var s = 0; s < docs.buildingSites[i].OfficeNames.length; s++) {
+              if (officeBuildingId.has(docs.buildingSites[i].OfficeNames[s])) {
+                officeBuildingId.set(docs.buildingSites[i].OfficeNames[s], officeBuildingId.get(docs.buildingSites[i].OfficeNames[s]).concat(docs.buildingSites[i].buildingId));
+                officeSitesId.set(docs.buildingSites[i].OfficeNames[s], officeSitesId.get(docs.buildingSites[i].OfficeNames[s]).concat(docs.buildingSites[i].siteName));
               } else {
-                officeBuildingId.set(docs.buildingSites[i].Site[2].OfficeNames[s], docs.buildingSites[i].Site[1].buildingId);
-                officeSitesId.set(docs.buildingSites[i].Site[2].OfficeNames[s], [docs.buildingSites[i].Site[0].siteName]);
+                officeBuildingId.set(docs.buildingSites[i].OfficeNames[s], docs.buildingSites[i].buildingId);
+                officeSitesId.set(docs.buildingSites[i].OfficeNames[s], [docs.buildingSites[i].siteName]);
               }
             }
           }
@@ -1673,8 +1733,8 @@ router.get("/listOfficeBlock", (req, res) => {
               console.log(docs.buildingSites[i]);
 
               let siteElement = {
-                siteName: docs.buildingSites[i].Site[0].siteName,
-                buildingId: docs.buildingSites[i].Site[1].buildingId
+                siteName: docs.buildingSites[i].siteName,
+                buildingId: docs.buildingSites[i].buildingId
               }
               arrList.push(siteElement);
             }
@@ -1721,8 +1781,8 @@ router.get("/listSiteAndBuildingId", (req, res) => {
         if (!err) {
           var arr = [];
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-              var obj = docs[0].buildingSites[i].Site[0].OfficeNames;
+            for (var s = 0; s < docs[0].buildingSites[i].OfficeNames.length; s++) {
+              var obj = docs[0].buildingSites[i].OfficeNames;
               arr.push(obj);
             }
           }
@@ -1769,8 +1829,8 @@ router.get("/listLocationAndOfficeName", (req, res) => {
           if (!err) {
             var arr = [];
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              for (var s = 0; s < docs[0].buildingSites[i].Site[2].OfficeNames.length; s++) {
-                var obj = docs[0].buildingSites[i].Site[2].OfficeNames[s];
+              for (var s = 0; s < docs[0].buildingSites[i].OfficeNames.length; s++) {
+                var obj = docs[0].buildingSites[i].OfficeNames[s];
                 arr.push(obj);
               }
             }
@@ -1792,7 +1852,7 @@ router.get("/listLocationAndOfficeName", (req, res) => {
           if (!err) {
             var arr = [];
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              var obj = docs[0].buildingSites[i].Site[0].siteName;
+              var obj = docs[0].buildingSites[i].siteName;
               arr.push(obj);
             }
             let toSend = {
@@ -1838,8 +1898,8 @@ router.get("/listBuildingId", (req, res) => {
         if (!err) {
           var arr = [];
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            console.log(docs[0].buildingSites[i].Site[1].buildingId);
-            arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+            console.log(docs[0].buildingSites[i].buildingId);
+            arr = arr.concat(docs[0].buildingSites[i].buildingId);
           }
           res.json(arr);
         } else {
@@ -1874,7 +1934,7 @@ router.get("/listOffice", (req, res) => {
         }, (err, docs) => {
           if (!err) {
             for (var i = 0; i < docs[0].buildingSites.length; i++) {
-              arr = arr.concat(docs[0].buildingSites[i].Site[2].OfficeNames);
+              arr = arr.concat(docs[0].buildingSites[i].OfficeNames);
             }
             arr = arr.concat(officeArr);
             arr = [...new Set(arr)];
@@ -1930,8 +1990,8 @@ router.get("/listSites", (req, res) => {
 
           var arr = [];
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            console.log(docs[0].buildingSites[i].Site[0].siteName);
-            arr.push(docs[0].buildingSites[i].Site[0].siteName);
+            console.log(docs[0].buildingSites[i].siteName);
+            arr.push(docs[0].buildingSites[i].siteName);
           }
           res.json(arr);
         } else {
@@ -1968,8 +2028,8 @@ router.get("/buildingDetails", (req, res) => {
           var arr = [];
           var buildingSet = [];
           for (var i = 0; i < docs[0].buildingSites.length; i++) {
-            buildingSet[i] = docs[0].buildingSites[i].Site[1].buildingId;
-            arr = arr.concat(docs[0].buildingSites[i].Site[1].buildingId);
+            buildingSet[i] = docs[0].buildingSites[i].buildingId;
+            arr = arr.concat(docs[0].buildingSites[i].buildingId);
           }
           console.log(arr)
           console.log(buildingSet)
@@ -2000,32 +2060,32 @@ router.get("/buildingDetails", (req, res) => {
             let pairSet = [];
             for (var u = 0; u < docs[0].buildingSites.length; u++) {
               pairSet = [];
-              for (var x = 0; x < docs[0].buildingSites[u].Site[1].buildingId.length; x++) {
-                console.log(docs[0].buildingSites[u].Site[1].buildingId[x]);
+              for (var x = 0; x < docs[0].buildingSites[u].buildingId.length; x++) {
+                console.log(docs[0].buildingSites[u].buildingId[x]);
                 for (var t = 0; t < pair.length; t++) {
-                  if (docs[0].buildingSites[u].Site[1].buildingId[x] == pair[t][0]) {
+                  if (docs[0].buildingSites[u].buildingId[x] == pair[t][0]) {
                     pairSet.push(pair[t]);
                     break;
                   }
                 }
               }
-              docs[0].buildingSites[u].Site[1].buildingId = pairSet;
+              docs[0].buildingSites[u].buildingId = pairSet;
               console.log("\n")
             }
 
 
             let sites1 = [];
             for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
-              sites1 = sites1.concat(docs[0].buildingSites[tar].Site[0].siteName);
+              sites1 = sites1.concat(docs[0].buildingSites[tar].siteName);
             }
             let bidspair = [];
             for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
-              bidspair = bidspair.concat(docs[0].buildingSites[tar].Site[1].buildingId);
+              bidspair = bidspair.concat(docs[0].buildingSites[tar].buildingId);
             }
 
             let olist = [];
             for (var tar = 0; tar < docs[0].buildingSites.length; tar++) {
-              olist = olist.concat(docs[0].buildingSites[tar].Site[2].OfficeNames);
+              olist = olist.concat(docs[0].buildingSites[tar].OfficeNames);
             }
 
             let obj3arr = {
@@ -2381,6 +2441,7 @@ router.post("/createBulk", authenticateToken, (req, res) => {
       for (var i = 0; i < docs.length; i++) {
         console.log(docs[i].buildingId);
         map.set(docs[i].buildingId, {
+          _id: docs[i]._id,
           name: docs[i].buildingId,
           localName: docs[i].idName,
           type: docs[i].buildingType
@@ -2682,6 +2743,7 @@ function insertRecord(req, res) {
     let idNamePair = [];
     for (var i = 0; i < bidPair.length; i++) {
       let temp = {
+        _id: bidPair[i]._id,
         name: bidPair[i].buildingId,
         localName: bidPair[i].idName,
         type: "LCE"
@@ -2700,7 +2762,9 @@ function insertRecord(req, res) {
       }
     }
     employee.fullName = req.body.fullName;
-    employee.office = req.body.office;
+    if (req.body.office != null) {
+      employee.office = req.body.office;
+    }
     employee.officeEmail = req.body.officeEmail;
     //  employee.buildingId = req.body.buildingId;
     employee.buildingId = idNamePair;
@@ -2737,12 +2801,12 @@ function insertRecord(req, res) {
       employee.save((err, doc) => {
         if (!err) {
           console.log("New employee created");
-          if (req.body.office != null) {
-            res.send("employee created ");
-          } else {
-            res.status(400);
-            res.send("employee not created ");
-          }
+          //    if (req.body.office != null) {
+          res.send("employee created ");
+          //      } else {
+          //         res.status(400);
+          //        res.send("employee not created , error : " + );
+          //    }
         } else {
           console.log("error during record insertion : " + err);
           res.status(400);
@@ -2775,6 +2839,7 @@ function updateRecord(req, res) {
     let idNamePair = [];
     for (var i = 0; i < bidPair.length; i++) {
       let temp = {
+        _id: bIdPair[i]._id,
         name: bidPair[i].buildingId,
         localName: bidPair[i].idName,
         type: "LCE"

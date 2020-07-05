@@ -6,6 +6,10 @@ var buildingSchema = new mongoose.Schema({
     unique: true,
     required: " full name is required"
   },
+  originalName: {
+    type: String,
+    required: " name is required"
+  },
   locationType: {
     type: String,
     enum: ['office', 'residential'],
