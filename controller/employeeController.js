@@ -185,7 +185,7 @@ router.post("/search", (req, res) => {
 
 
 
-router.post("/resetMail", authenticateToken, (req, res) => {
+router.post("/resetMail", (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   Admin.findOne({
     username: req.body.username
@@ -222,14 +222,54 @@ router.post("/resetMail", authenticateToken, (req, res) => {
       //      console.log(docs);
 
 
+      /*
+      <div style="background-color: rgba(0 ,0, 0 , 0.01); border-radius: 20px;">
+      <h2 style="background-color: rgba(0,113,185); border-radius: 20px 20px 0px 0px; color: rgba(255,255,255); padding: 18px; text-align: center;">Building Admin - Reset Password</h2>
+      <p style="padding: 0px 0px 5px 20px; font-size: 16px;"><b>Click below link to reset password </b></p>
+      <p style="padding: 0px 0px 5px 20px; font-size: 16px; ">The link will be valid for only 1 hour</p>
+      <button style="background-color: rgba(0,113,185); margin-left: 20px; margin-bottom: 8px; padding: 8px 10px 8px 10px; border-radius: 10px;" type="button"><a style = "  text-decoration: none; color: rgba(255,255,255);  font-size: 25px; " href=" + link + "><b>Reset Password</b></a></button>
+      <p style="padding: 0px 0px 15px 20px; font-size: 16px; font-weight: 50;">Thanks for choosing Remote Call Elevator - KONE</p>
+        </div>
+
+        <div style="background-color: rgba(0 ,0, 0 , 0.03); font-family: Arial, Helvetica, sans-serif; border-radius: 20px;">
+<h1 style="background-color: rgba(0,113,185); border-radius: 20px 20px 0px 0px; color: rgba(255,255,255); padding: 18px; text-align: center;">Building Admin - Reset Password</h1>
+  <p style="padding: 0px 0px 5px 20px; font-size: 19px;"><b>Click below link to reset password </b></p>
+<p style="padding: 0px 0px 5px 20px; font-size: 19px; ">The link will be valid for only 1 hour</p>
+<button style="background-color: rgba(0,113,185); margin-left: 20px; margin-bottom: 8px; padding: 8px 10px 8px 10px; border-radius: 10px;" type="button"><a style = "  text-decoration: none; color: rgba(255,255,255);  font-size: 25px; " href=" + link + "><b>Reset Password</b></a></button>
+<p style="padding: 0px 0px 15px 20px; font-size: 19px; font-weight: 50;">Thanks for choosing Remote Call Elevator - KONE</p>
+</div>
+
+<div style=" box-shadow: 1px 2px 2px 1px #888888;  font-family: Arial, Helvetica, sans-serif; border-radius: 15px;">
+<h1 style="background-color: rgba(0,113,185); border-radius: 15px 15px 0px 0px; color: rgba(255,255,255); padding: 18px; text-align: center;">Building Admin - Reset Password</h1>
+  <p style="padding: 0px 0px 5px 20px; font-size: 19px;"><b>Click below link to reset password </b></p>
+<p style="padding: 0px 0px 5px 20px; font-size: 19px; ">The link will be valid for only 1 hour</p>
+<button style="background-color: rgba(0,113,185); margin-left: 20px; margin-bottom: 8px; padding: 8px 10px 8px 10px; border-radius: 10px;" type="button"><a style = "  text-decoration: none; color: rgba(255,255,255);  font-size: 25px; " href=" + link + "><b>Reset Password</b></a></button>
+<p style="padding: 0px 0px 15px 20px; font-size: 19px; font-weight: 50;">Thanks for choosing Remote Call Elevator - KONE</p>
+</div>
+
+      */
+
+
+
       let link = "https://user-management.kone.com/resetpassword.html?locationId=" + docs.locationId + "&username=" + docs.username + "&_id=" + docs._id + "&authId=" + ciphertext;
+      let htmlbody = "";
+
+      htmlbody += '<div style=" box-shadow: 1px 2px 2px 1px #888888; font-family: Arial, Helvetica, sans-serif; border-radius: 15px;">'
+      htmlbody += '<h1 style="background-color: rgba(0,113,185); border-radius: 15px 15px 0px 0px; color: rgba(255,255,255); padding: 18px; text-align: center;">Building Admin - Reset Password</h1>'
+      htmlbody += '  <p style="padding: 0px 0px 5px 20px; font-size: 18px;"><b>Click below link to reset password </b></p>'
+      htmlbody += '<p style="padding: 0px 0px 5px 20px; font-size: 18px; ">The link will be valid for only 1 hour</p>'
+      htmlbody += '<button style="background-color: rgba(0,113,185); margin-left: 20px; margin-bottom: 8px; padding: 8px 10px 8px 10px; border-radius: 10px; border-width : 0px" type="button"><a style = "  text-decoration: none; color: rgba(255,255,255);  font-size: 25px; " href=' + link + '><b>Reset Password</b></a></button>'
+      htmlbody += '<p style="padding: 0px 0px 15px 20px; font-size: 18px; font-weight: 50;">Thanks for choosing Remote Call Elevator - KONE</p>'
+      htmlbody += '</div>'
+
+
 
       var mailOptions = {
         from: 'WB_Karthik@gmail.com',
         to: mail,
         subject: 'KONE User Management tool - Password reset link',
         text: 'KONE password reset link',
-        html: '<div style="background-color: rgba(37 ,211, 102 , 0.5); border-radius: 20px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Click below link to reset password </h1> <p style = "padding : 0px 0px 5px 20px;"> Link will be valid for only 1 hour </p><button style = "margin-left: 20px; margin-bottom: 8px; padding: 5px 10px 5px 10px; border-radius: 10px;" type="button"><a href=' + link + ' >Reset link</a></button> </div>'
+        html: htmlbody
       };
 
       transporter.sendMail(mailOptions, function(error, info) {
@@ -264,44 +304,54 @@ router.post("/resetAdminPassword", async (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   // Decrypt
   const ciphertext = req.body.authId;
-  var bytes = cryptoJS.AES.decrypt(ciphertext, process.env.TIMECRYPT);
-  var usertime = parseInt(bytes.toString(cryptoJS.enc.Utf8));
-  console.log(usertime);
-
-  let currentTime = new Date().valueOf();
-  if ((usertime + 3600) > currentTime) {
-    let newPassword = await bcrypt.hash(req.body.password.toString(), 10);
-    Admin.update({
-        _id: req.body._id
-      }, {
-        $set: {
-          password: newPassword
-        }
-      },
-      function(err, result) {
-        if (err) {
-          let message = {
-            error: err
-          }
-          res.status(400).json(message);
-        } else {
-          let message = {
-            message: "password was reset"
-          }
-          res.json(message);
-        }
-      }
-    );
-
-
-
+  if (ciphertext == undefined) {
+    res.status(400).json({
+      err: "authId missing/invalid url"
+    });
   } else {
-    let message = {
-      err: "Reset timer has expired"
-    }
-    res.status(400).json(message);
-  }
+    var bytes = cryptoJS.AES.decrypt(ciphertext, process.env.TIMECRYPT);
+    var usertime = parseInt(bytes.toString(cryptoJS.enc.Utf8));
+    console.log(usertime);
 
+    let currentTime = new Date().valueOf();
+    console.log(usertime + "    " + currentTime);
+    console.log((usertime + 3600000) + "    " + currentTime);
+    if ((usertime + 3600000) > currentTime) {
+      let newPassword = await bcrypt.hash(req.body.password.toString(), 10);
+      console.log("req.body._id : " + req.body._id);
+      Admin.update({
+          _id: req.body._id
+        }, {
+          $set: {
+            password: newPassword
+          }
+        },
+        function(err, result) {
+          if (err) {
+            console.log("errrr while updating:" + err);
+            let message = {
+              error: err
+            }
+            res.status(400).json(message);
+          } else {
+            console.log("password was reset");
+            let message = {
+              message: "password was reset"
+            }
+            res.json(message);
+          }
+        }
+      );
+
+
+
+    } else {
+      let message = {
+        err: "Reset timer has expired"
+      }
+      res.status(400).json(message);
+    }
+  }
 });
 
 
@@ -1456,7 +1506,7 @@ router.post("/Office", (req, res) => {
 
 
 //List office IDs of a building
-router.get("/listOfficeId", (req, res) => {
+router.get("/listOfficeId", authenticateToken, (req, res) => {
 
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
@@ -1762,6 +1812,17 @@ router.get("/listOfficeBlock", (req, res) => {
 
 
 
+router.get("/testBackend", (req, res) => {
+  res.set("Access-Control-Allow-Headers", "*");
+
+  res.json({
+    message: "hello from backend"
+  });
+
+});
+
+
+
 
 
 
@@ -1810,7 +1871,7 @@ router.get("/listSiteAndBuildingId", (req, res) => {
 
 
 // List (1)Location And Office Names
-router.get("/listLocationAndOfficeName", (req, res) => {
+router.get("/listLocationAndOfficeName", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -1834,6 +1895,7 @@ router.get("/listLocationAndOfficeName", (req, res) => {
                 arr.push(obj);
               }
             }
+            arr = [...new Set(arr)];
             let toSend = {
               locationType: docs[0].locationType,
               officeNames: arr
@@ -1916,7 +1978,7 @@ router.get("/listBuildingId", (req, res) => {
 
 
 // List Offices of a Building
-router.get("/listOffice", (req, res) => {
+router.get("/listOffice", authenticateToken, (req, res) => {
   res.set("Access-Control-Allow-Headers", "*");
   let bName = req.headers.buildingid != undefined ? to_ascii(res, req.headers.buildingid) : to_ascii(res, "");
   if (bName != -1) {
@@ -2397,7 +2459,7 @@ router.post("/approveUser", authenticateToken, (req, res) => {
             to: mail,
             subject: 'Your building access request has been approved',
             text: 'You now have access to services in kosmoone.',
-            html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hello ' + req.body.fullName + ', you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
+            html: '<div style="background-color: rgba(37 ,211, 102 , 0.7); border-radius: 25px; " ><h1 style = "padding-left : 20px;  padding-top : 10px; " > Request Granted !</h1><p style = "font-size:20px; font-weight: bold; padding-bottom : 9px;  padding-left : 20px;"> Hi , you now have access to services at ' + bName.toUpperCase() + '.</p></div>'
           };
 
           transporter.sendMail(mailOptions, function(error, info) {
@@ -2802,7 +2864,7 @@ function insertRecord(req, res) {
         if (!err) {
           console.log("New employee created");
           //    if (req.body.office != null) {
-          res.send("employee created ");
+          res.send("employee created");
           //      } else {
           //         res.status(400);
           //        res.send("employee not created , error : " + );
@@ -2839,7 +2901,7 @@ function updateRecord(req, res) {
     let idNamePair = [];
     for (var i = 0; i < bidPair.length; i++) {
       let temp = {
-        _id: bIdPair[i]._id,
+        _id: bidPair[i]._id,
         name: bidPair[i].buildingId,
         localName: bidPair[i].idName,
         type: "LCE"
@@ -2867,20 +2929,22 @@ function updateRecord(req, res) {
         new: true
       }, (err, doc) => {
         if (!err) {
-          res.send("record updated with  \n" + JSON.stringify(req.body));
+          res.send("record updated");
         } else {
           if (err.name == "ValidationError") {
             res.status(400);
             res.send("validation error " + err);
           } else {
             res.status(400);
-            res.send("Error during record update : " + err);
+            res.send("validation error " + err);
           }
         }
       });
     } else {
       res.status(400);
-      res.send("invalid email");
+      res.json({
+        err: "invalid email"
+      });
       console.log("invalid email");
     }
 
@@ -3078,8 +3142,8 @@ function authenticateToken(req, res, next) {
         err: "token verification failed"
       })
     } else {
-      console.log("mp3");
       console.log(user);
+      req.headers.buildingid = user.locationid;
       req.user = user;
       next();
     }

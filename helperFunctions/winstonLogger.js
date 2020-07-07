@@ -3,6 +3,8 @@ const {
   transports,
   format
 } = require('winston');
+
+
 const logger = createLogger({
   transports: [
     new transports.Console({
@@ -10,6 +12,7 @@ const logger = createLogger({
       format: format.combine(format.timestamp(), format.json())
     })
   ]
+
 });
 
 module.exports = logger;
